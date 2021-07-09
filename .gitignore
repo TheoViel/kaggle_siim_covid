@@ -11,3 +11,6 @@ logs2/
 input/train/
 input/test/
 *.zip
+*.png
+*.jpg
+*.jpeg
