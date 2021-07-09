@@ -8,4 +8,6 @@ __pycache__
 *.json
 logs/
 logs2/
-input/
+input/train/
+input/test/
+*.zip
