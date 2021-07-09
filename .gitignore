@@ -1,0 +1,11 @@
+*.pyc
+__pycache__
+.idea
+.ipynb_checkpoints
+*.pt
+.vscode
+*.pkl
+*.json
+logs/
+logs2/
+input/
