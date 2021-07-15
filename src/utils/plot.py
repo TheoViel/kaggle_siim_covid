@@ -1,29 +1,26 @@
-import numpy as np
+# import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
 
-def plot_sample(img, boxes, normalized=True):
-    plt.figure(figsize=(5, 5))
+def plot_sample(img, boxes, bbox_format="yolo"):
+    plt.figure(figsize=(9, 9))
     plt.imshow(img, cmap="gray")
     plt.axis(False)
 
-    h, w, _ = img.shape
-    if normalized and len(boxes):
-        boxes = np.array(boxes)
-        boxes[:, 0] *= w
-        boxes[:, 1] *= h
-        boxes[:, 2] *= w
-        boxes[:, 3] *= h
-
     for box in boxes:
-        rect = Rectangle(
-            (box[0], box[1]), box[2], box[3],
-            linewidth=2, edgecolor='salmon', facecolor='none'
-        )
+        if bbox_format == "yolo":
+            h, w, _ = img.shape
+            rect = Rectangle(
+                ((box[0] - box[2] / 2) * w, (box[1] - box[3] / 2) * h), box[2] * w, box[3] * h,
+                linewidth=2, edgecolor='salmon', facecolor='none'
+            )
+        elif bbox_format == "pascal_voc":
+            rect = Rectangle(
+                (box[0], box[1]), box[2] - box[0], box[3] - box[1],
+                linewidth=2, edgecolor='salmon', facecolor='none'
+            )
+        else:
+            raise NotImplementedError()
 
-        # rect = Rectangle(
-        #     (box[0] - box[2] / 2, box[1] - box[3] / 2), box[2], box[3],
-        #     linewidth=2, edgecolor='salmon', facecolor='none'
-        # )
         plt.gca().add_patch(rect)

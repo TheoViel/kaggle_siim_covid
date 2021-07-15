@@ -3,7 +3,8 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset
 
-from params import CLASSES
+from params import CLASSES, SIZE
+from utils.boxes import Boxes
 
 
 class CovidDataset(Dataset):
@@ -13,6 +14,7 @@ class CovidDataset(Dataset):
         root_dir="",
         transforms=None,
         train=False,
+        bbox_format="yolo"
     ):
         """
         Constructor
@@ -26,13 +28,28 @@ class CovidDataset(Dataset):
         self.train = train
         self.root_dir = root_dir
         self.transforms = transforms
+        self.bbox_format = bbox_format
 
-        self.img_names = df["image_id"].values
+        self.img_names = df["save_name"].values
         self.targets = df[CLASSES].values
         self.studies = df["study_id"].values
 
-        self.original_shapes = df[["dim1", "dim0"]].values
-        self.boxes = df['boxes']
+        self.get_boxes()
+
+    def get_boxes(self):
+        self.original_shapes = self.df["shape"].values
+        self.crop_starts = self.df['crop_starts'].values
+        self.boxes = []
+        for boxes, orig_shape, starts in self.df[['boxes', 'shape', 'crop_starts']].values:
+            boxes = np.array(boxes).astype(float)
+
+            if len(boxes):
+                boxes[:, 0] -= starts[0]
+                boxes[:, 1] -= starts[1]
+
+            boxes = Boxes(boxes, orig_shape, bbox_format="coco")
+            boxes.resize((SIZE, SIZE))
+            self.boxes.append(boxes)
 
     def __len__(self):
         return self.df.shape[0]
@@ -48,18 +65,17 @@ class CovidDataset(Dataset):
             torch tensor [C x H x W]: Image.
             torch tensor [NUM_CLASSES]: Label.
         """
-        image = cv2.imread(self.root_dir + self.img_names[idx] + ".png")
-
-        boxes = np.array(self.boxes[idx])
-        if len(boxes):
-            boxes[:, 0] /= self.original_shapes[idx][0]
-            boxes[:, 1] /= self.original_shapes[idx][1]
-            boxes[:, 2] /= self.original_shapes[idx][0]
-            boxes[:, 3] /= self.original_shapes[idx][1]
+        image = cv2.imread(self.root_dir + self.img_names[idx])
+        boxes = self.boxes[idx][self.bbox_format]
 
         if self.transforms:
-            image = self.transforms(image=image)["image"]
+            transformed = self.transforms(
+                image=image, bboxes=boxes, class_labels=[0] * len(boxes)
+            )
+            image = transformed["image"]
+            boxes = np.array(transformed["bboxes"])
 
         y = torch.tensor(self.targets[idx], dtype=torch.float)
+        # y = np.array(self.targets[idx])
 
         return image, y, boxes
