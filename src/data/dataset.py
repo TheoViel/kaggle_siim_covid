@@ -66,16 +66,21 @@ class CovidDataset(Dataset):
             torch tensor [NUM_CLASSES]: Label.
         """
         image = cv2.imread(self.root_dir + self.img_names[idx])
-        boxes = self.boxes[idx][self.bbox_format]
+        boxes = self.boxes[idx]
+
+        mask = np.zeros(image.shape[:-1])
+        boxes.fill(mask)
+        boxes = boxes[self.bbox_format]
 
         if self.transforms:
             transformed = self.transforms(
-                image=image, bboxes=boxes, class_labels=[0] * len(boxes)
+                image=image, mask=mask, bboxes=boxes, class_labels=[0] * len(boxes)
             )
             image = transformed["image"]
+            mask = transformed["mask"]
             boxes = np.array(transformed["bboxes"])
 
         y = torch.tensor(self.targets[idx], dtype=torch.float)
         # y = np.array(self.targets[idx])
 
-        return image, y, boxes
+        return image, mask, y, boxes

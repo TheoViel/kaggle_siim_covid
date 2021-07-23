@@ -1,6 +1,8 @@
 import json
 import numpy as np
 
+from ensemble_boxes import weighted_boxes_fusion
+
 
 def treat_boxes(boxes_string):
     """
@@ -201,6 +203,36 @@ def expand_boxes(boxes, r=1):
     return Boxes(boxes, shape, bbox_format="yolo")
 
 
+def box_fusion(boxes, iou_threshold=0.5, return_once=True):
+    boxes_albu = [box["albu"].copy() for box in boxes]
+
+    confidences = [[1] * len(p) for p in boxes_albu]
+    labels = [[0] * len(p) for p in boxes_albu]
+
+    pred_wbf, confidences_wbf, _ = weighted_boxes_fusion(
+        boxes_albu, confidences, labels, iou_thr=iou_threshold
+    )
+
+    if return_once:
+        return Boxes(pred_wbf, boxes[0].shape, bbox_format="albu")
+    else:
+        return [Boxes(pred_wbf, boxes[0].shape, bbox_format="albu") for _ in range(len(boxes))]
+
+
+def merge_boxes(boxes, transpositions):
+    for box, tran in zip(boxes, transpositions):
+        if tran:
+            box.hflip()
+
+    fused_boxes = box_fusion(boxes, return_once=False)
+
+    for box, tran in zip(fused_boxes, transpositions):
+        if tran:
+            box.hflip()
+
+    return fused_boxes
+
+
 class Boxes:
     """
     Class to handle different format of bounding boxes easily.
@@ -235,6 +267,7 @@ class Boxes:
             raise NotImplementedError
 
     def __getitem__(self, bbox_format):
+
         if bbox_format == "yolo":
             return self.boxes_yolo
         elif bbox_format == "pascal_voc":
@@ -244,6 +277,7 @@ class Boxes:
         elif bbox_format == "coco":
             return self.boxes_coco
         else:
+            print(bbox_format)
             raise NotImplementedError
 
     def __len__(self):
@@ -254,3 +288,16 @@ class Boxes:
         self.h, self.w = shape[0], shape[1]
         self.boxes_pascal = yolo_to_pascal(self.boxes_yolo.copy(), self.h, self.w)
         self.boxes_coco = pascal_to_coco(self.boxes_pascal.copy())
+
+    def fill(self, img, value=1):
+        for box in self.boxes_pascal:
+            img[box[1]: box[3], box[0]: box[2]] = value
+
+    def hflip(self):
+        if len(self.boxes_yolo):
+            self.boxes_yolo[:, 0] = 1 - self.boxes_yolo[:, 0]
+            # self.boxes_yolo[:, 1] = 1 - self.boxes_yolo[:, 1]
+
+            self.boxes_pascal = yolo_to_pascal(self.boxes_yolo.copy(), self.h, self.w)
+            self.boxes_albu = pascal_to_albu(self.boxes_pascal.copy(), self.h, self.w)
+            self.boxes_coco = pascal_to_coco(self.boxes_pascal.copy())

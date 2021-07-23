@@ -1,13 +1,13 @@
 import torch
-import torch.nn.functional as F
-import resnest.torch as resnest_torch
-from efficientnet_pytorch import EfficientNet
+import torch.nn as nn
+
+from model_zoo.encoders import get_encoder
 
 
-def get_encoder(name, num_classes=1):
+def get_model(name, num_classes=1, reduce_stride=False):
     """
     Loads a pretrained model.
-    Supports ResNest, ResNext-wsl, EfficientNet, ResNext and ResNet.
+    Supports ResNest, ResNext-wsl, EfficientNet, ResNext and encoder.
     Args:
         name (str): Name of the model to load
         num_classes (int, optional): Number of classes to use. Defaults to 1.
@@ -16,44 +16,95 @@ def get_encoder(name, num_classes=1):
     Returns:
         torch model: Pretrained model
     """
-    if "resnest" in name:
-        model = getattr(resnest_torch, name)(pretrained=True)
-    elif "wsl" in name:
-        model = torch.hub.load("facebookresearch/WSL-Images", name)
-    elif "resnext" in name or "resnet" in name or "densenet" in name:
-        model = torch.hub.load("pytorch/vision:v0.6.0", name, pretrained=True)
-    elif "efficientnet" in name:
-        model = EfficientNet.from_pretrained(name)
-    else:
-        raise NotImplementedError
 
-    if "efficientnet" in name:
-        model.nb_ft = model._fc.in_features
-    elif "densenet" in name:
-        model.nb_ft = model.classifier.in_features
-        model.extract_features = lambda x: extract_features_densenet(model, x)
-    else:
-        model.nb_ft = model.fc.in_features
-        model.extract_features = lambda x: extract_features_resnet(model, x)
+    encoder = get_encoder(name)
+
+    model = CovidModel(encoder, num_classes=num_classes, reduce_stride=reduce_stride)
 
     return model
 
 
-def extract_features_resnet(self, x):
-    x = self.conv1(x)
-    x = self.bn1(x)
-    x = self.relu(x)
-    x = self.maxpool(x)
+class CovidModel(nn.Module):
+    def __init__(self, encoder, num_classes=1, reduce_stride=False):
+        """
+        Constructor.
 
-    x = self.layer1(x)
-    x = self.layer2(x)
-    x = self.layer3(x)
-    x = self.layer4(x)
+        Args:
+            encoder (nn.Module): encoder to build the model from.
+        """
+        super().__init__()
+        self.encoder = encoder
+        self.num_classes = num_classes
+        self.nb_ft = encoder.fc.in_features
 
-    return x
+        if reduce_stride:
+            if "resnext" in self.encoder.name:
+                self.encoder.layer4[0].conv2.stride = (1, 1)
+                self.encoder.layer4[0].downsample[0].stride = (1, 1)
+            elif "resnet" in self.encoder.name:
+                self.encoder.layer4[0].conv1.stride = (1, 1)
+                self.encoder.layer4[0].downsample[0].stride = (1, 1)
+            else:
+                raise NotImplementedError
 
+        self.mask_head_3 = self.get_mask_head(self.nb_ft // 2)
+        self.mask_head_4 = self.get_mask_head(self.nb_ft)
 
-def extract_features_densenet(self, x):
-    x = self.features(x)
-    x = F.relu(x, inplace=True)   # remove ?
-    return x
+        self.key_conv = nn.Conv2d(1, 1, kernel_size=3, padding=1)
+        self.value_conv = nn.Conv2d(self.nb_ft, self.nb_ft, kernel_size=3, padding=1)
+
+        self.logits_img = nn.Linear(self.nb_ft, 1)
+        self.logits_study = nn.Linear(self.nb_ft, num_classes)
+
+    @staticmethod
+    def get_mask_head(nb_ft):
+        return nn.Sequential(
+            nn.Conv2d(nb_ft, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(128, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(128, 1, kernel_size=1, padding=0),
+        )
+
+    def attention_mechanism(self, fts, masks):
+        """
+        Performs the forward pass of the attention mechanism.
+
+        Args:
+            fts (torch tensor [batch_size x nb_ft x h x w]): Feature maps.
+            masks (list of torch tensor [batch_size x 1 x h x w]): Masks.
+
+        Returns:
+            torch tensor (batch_size x nb_ft): Pooled features.
+        """
+        bs, c, h, w = fts.size()
+
+        weights = []
+        for mask in masks:
+            mask = self.key_conv(mask)
+            weights.append(torch.softmax(mask.view(bs, -1, h * w), -1).transpose(1, 2))
+
+        att = torch.cat(weights, -1).sum(-1, keepdims=True)
+
+        fts = self.value_conv(fts)
+        fts = fts.view(bs, c, h * w)
+
+        return torch.bmm(fts, att).view(-1, self.nb_ft)
+
+    def forward(self, x):
+        # F.interpolate(truth_mask, size=(48,48), mode='bilinear', align_corners=False)
+
+        x1, x2, x3, x4 = self.encoder.extract_features(x)
+
+        mask_3 = self.mask_head_3(x3)
+        mask_4 = self.mask_head_4(x4)
+        masks = [mask_3, mask_4]
+
+        pooled = self.attention_mechanism(x4, masks)
+
+        logits_img = self.logits_img(pooled)
+        logits_study = self.logits_study(pooled)
+
+        return logits_study, logits_img, masks

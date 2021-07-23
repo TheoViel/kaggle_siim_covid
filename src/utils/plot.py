@@ -4,7 +4,7 @@ from matplotlib.patches import Rectangle
 
 
 def plot_sample(img, boxes, bbox_format="yolo"):
-    plt.figure(figsize=(9, 9))
+    # plt.figure(figsize=(9, 9))
     plt.imshow(img, cmap="gray")
     plt.axis(False)
 

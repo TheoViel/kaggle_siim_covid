@@ -18,8 +18,8 @@ def blur_transforms(p=0.5, blur_limit=5):
     """
     return albu.OneOf(
         [
-            albu.MotionBlur(blur_limit=blur_limit, always_apply=True),
-            albu.GaussianBlur(blur_limit=blur_limit, always_apply=True),
+            albu.MotionBlur(always_apply=True),
+            albu.GaussianBlur(always_apply=True),
         ],
         p=p,
     )
@@ -175,12 +175,11 @@ def get_transfos(
                 albu.HorizontalFlip(p=0.5),
                 color_transforms(p=0.5),
                 blur_transforms(p=0.5),
-                distortion_transforms(p=0.25),
-                dropout_transforms(p=0.1),
+                # dropout_transforms(p=0.1),
                 normalizer,
             ],
             bbox_params=albu.BboxParams(
-                format=bbox_format, label_fields=["class_labels"], min_visibility=0.5
+                format=bbox_format, label_fields=["class_labels"], min_visibility=0.1
             ),
         )
     else:
