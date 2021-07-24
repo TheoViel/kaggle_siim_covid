@@ -108,7 +108,7 @@ def define_loaders(train_dataset, val_dataset, samples_per_patient=0, batch_size
     if samples_per_patient:
         sampler = PatientSampler(
             RandomSampler(train_dataset),
-            train_dataset.patients_img,
+            train_dataset.studies,
             batch_size=batch_size,
             drop_last=True,
             samples_per_patient=samples_per_patient,
@@ -133,7 +133,7 @@ def define_loaders(train_dataset, val_dataset, samples_per_patient=0, batch_size
 
     print(
         f"Using {len(train_loader)} out of {len(train_dataset) // batch_size} "
-        f"batches by limiting to {samples_per_patient} samples per patient.\n"
+        f"batches by limiting to {samples_per_patient} samples per study.\n"
     )
 
     val_loader = DataLoader(

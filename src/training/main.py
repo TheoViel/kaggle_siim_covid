@@ -2,13 +2,13 @@ import torch
 import numpy as np
 import pandas as pd
 
-from sklearn.model_selection import GroupKFold
 
+from params import CLASSES
 from training.train import fit
-from data.dataset import ColorBCCDataset
-from data.transforms import OCT_preprocess
-from model_zoo.models import define_model
-from utils.metrics import compute_metrics, SeededGroupKFold
+from data.dataset import CovidClsDataset
+from data.transforms import get_transfos_cls
+from model_zoo.models import get_model
+from utils.metrics import per_class_average_precision_score
 from utils.torch import seed_everything, count_parameters, save_model_weights
 
 
@@ -30,48 +30,25 @@ def train(config, df_train, df_val, fold, log_folder=None):
 
     seed_everything(config.seed)
 
-    model = define_model(
+    model = get_model(
         config.selected_model,
-        use_mixstyle=config.use_mixstyle,
-        use_attention=config.use_attention,
-        reduce_stride_3=config.reduce_stride_3,
+        reduce_stride=config.reduce_stride,
         num_classes=config.num_classes,
-        num_classes_aux=config.num_classes_aux,
-        pretrained_weights=config.pretrained_weights,
     ).to(config.device)
     model.zero_grad()
 
-    if config.mean_teacher_config is not None:
-        mean_teacher = define_model(
-            config.selected_model,
-            use_mixstyle=config.use_mixstyle,
-            use_attention=config.use_attention,
-            reduce_stride_3=config.reduce_stride_3,
-            num_classes=config.num_classes,
-            num_classes_aux=config.num_classes_aux,
-            pretrained_weights=config.pretrained_weights,
-        ).to(config.device)
-        mean_teacher.zero_grad()
-        for param in mean_teacher.parameters():
-            param.detach_()
-    else:
-        mean_teacher = None
-
-    train_dataset = ColorBCCDataset(
+    train_dataset = CovidClsDataset(
         df_train,
-        root_dir=config.img_folder,
-        img_name=config.img_name,
-        transforms=OCT_preprocess(),
-        target_name=config.target_name,
+        root_dir=config.root_dir,
+        transforms=get_transfos_cls(augment=True),
         train=True,
     )
 
-    val_dataset = ColorBCCDataset(
+    val_dataset = CovidClsDataset(
         df_val,
-        root_dir=config.img_folder,
-        img_name=config.img_name,
-        transforms=OCT_preprocess(augment=False),
-        target_name=config.target_name,
+        root_dir=config.root_dir,
+        transforms=get_transfos_cls(augment=False),
+        train=True,
     )
 
     n_parameters = count_parameters(model)
@@ -80,27 +57,21 @@ def train(config, df_train, df_val, fold, log_folder=None):
     print(f"    -> {len(val_dataset)} validation images")
     print(f"    -> {n_parameters} trainable parameters\n")
 
-    pred_val, history = fit(
+    pred_val_study, pred_val_img = fit(
         model,
-        mean_teacher,
-        config.mean_teacher_config,
         train_dataset,
         val_dataset,
         samples_per_patient=config.samples_per_patient,
         optimizer_name=config.optimizer,
-        loss_name=config.loss,
-        activation=config.activation,
         epochs=config.epochs,
         batch_size=config.batch_size,
         val_bs=config.val_bs,
         lr=config.lr,
         warmup_prop=config.warmup_prop,
-        swa_first_epoch=config.swa_first_epoch,
         mix=config.mix,
         mix_proba=config.mix_proba,
         mix_alpha=config.mix_alpha,
         num_classes=config.num_classes,
-        aux_loss_weight=config.aux_loss_weight,
         verbose=config.verbose,
         first_epoch_eval=config.first_epoch_eval,
         device=config.device,
@@ -113,54 +84,10 @@ def train(config, df_train, df_val, fold, log_folder=None):
             cp_folder=log_folder,
         )
 
-    del (model, mean_teacher, train_dataset, val_dataset)
+    del (model, train_dataset, val_dataset)
     torch.cuda.empty_cache()
 
-    return pred_val, history
-
-
-def get_metrics_cv(df, pred_oof, config):
-    """
-    Computes the metrics for the out of fold predictions.
-
-    Args:
-        df (pandas dataframe): Metadata, contains the targets.
-        pred_oof (np array [N x NUM_CLASSES]): Out of fold predictions.
-        config (Config): Config.
-
-    Returns:
-        dict : Metrics dictionary.
-    """
-    if config.num_classes > 1:
-        pred_cols = []
-        for i in range(pred_oof.shape[1]):
-            df[f'pred_{i}'] = pred_oof[:, i]
-            pred_cols.append(f'pred_{i}')
-
-        df = df[df[config.target_name_eval] >= 0]  # class -1 is not used
-
-        metrics = compute_metrics(
-            df[pred_cols].values,
-            df[config.target_name_eval].values,
-            num_classes=config.num_classes,
-            loss_name=config.loss
-        )
-
-        print(f"\n  -> CV accuracy : {metrics['accuracy'][0]:.3f}")
-    else:
-        df['pred'] = pred_oof
-
-        df = df[df[config.target_name_eval] >= 0]  # class -1 is not used
-        metrics = compute_metrics(
-            df['pred'].values,
-            df[config.target_name_eval].values,
-            num_classes=config.num_classes,
-            loss_name=config.loss
-        )
-
-        print(f"\n  -> CV auc : {metrics['auc'][0]:.3f}")
-
-    return metrics
+    return pred_val_study, pred_val_img
 
 
 def k_fold(config, df, df_extra=None, log_folder=None):
@@ -179,56 +106,50 @@ def k_fold(config, df, df_extra=None, log_folder=None):
     Returns:
         dict : Metrics dictionary.
     """
-    if config.class_weights is not None:
-        df["sample_weight"] = df["target"].apply(lambda x: config.class_weights[int(x)])
 
-    if config.random_state == 0:
-        gkf = GroupKFold(n_splits=config.k)
-    else:
-        gkf = SeededGroupKFold(n_splits=config.k, random_state=config.random_state)
+    pred_oof_study = np.zeros((len(df), config.num_classes))
+    pred_oof_img = np.zeros(len(df))
 
-    splits = list(gkf.split(X=df, y=df, groups=df["split"]))
-    pred_oof = np.zeros((len(df), config.num_classes))
-
-    for i, (train_idx, val_idx) in enumerate(splits):
+    for i in range(config.k):
         if i in config.selected_folds:
             print(f"\n-------------   Fold {i + 1} / {config.k}  -------------\n")
 
-            df_train = df.iloc[train_idx].copy().reset_index(drop=True)
-            df_val = df.iloc[val_idx].copy().reset_index(drop=True)
-
-            # print(df_val[['target', 'split']].groupby('split').agg(lambda x: np.unique(list(x))))
-            # df_train = df_train[df_train['target_unverif'] != "UNK"]
+            df_train = df[df[config.folds_col] != i].copy().reset_index(drop=True)
+            df_val = df[df[config.folds_col] == i].copy().reset_index(drop=True)
 
             if df_extra is not None:
-                val_split = df_val["split"].unique()
-                df_extra_ = df_extra[~df_extra["split"].isin(val_split)]
-
-                df_train = pd.concat([df_train, df_extra_], sort=False).reset_index(
+                df_train = pd.concat([df_train, df_extra], sort=False).reset_index(
                     drop=True
                 )
 
-            for patient in df_train['patient'].unique():
-                assert patient not in df_val['patient'].values
+            for study in df_train['study_id'].unique():
+                assert study not in df_val['study_id'].values
 
-            pred_val, history = train(
+            pred_val_study, pred_val_img = train(
                 config, df_train, df_val, i, log_folder=log_folder
             )
-            pred_oof[val_idx] = pred_val
+
+            val_idx = np.array(df[df[config.folds_col] == i].index)
+            pred_oof_study[val_idx] = pred_val_study
+            pred_oof_img[val_idx] = pred_val_img
 
             if log_folder is not None:
-                np.save(log_folder + f"val_idx_{i}.npy", val_idx)
-                np.save(log_folder + f"pred_val_{i}.npy", pred_val)
-                history.to_csv(log_folder + f"history_{i}.csv", index=False)
+                np.save(log_folder + f"pred_val_study_{i}.npy", pred_val_study)
+                np.save(log_folder + f"pred_val_img_{i}.npy", pred_val_img)
             else:
-                return
+                return pred_val_study, pred_val_img
 
     if log_folder is not None:
-        np.save(log_folder + "pred_oof.npy", pred_oof)
+        np.save(log_folder + "pred_oof_study.npy", pred_oof_study)
+        np.save(log_folder + "pred_oof_img.npy", pred_oof_img)
 
-    metrics = get_metrics_cv(df, pred_oof, config)
-    if log_folder is not None:
-        metrics = pd.DataFrame.from_dict(metrics)
-        metrics.to_csv(log_folder + "metrics.csv", index=False)
+    score_study = per_class_average_precision_score(
+        pred_oof_study, df[CLASSES].values, num_classes=config.num_classes
+    )
+    score_img = per_class_average_precision_score(pred_oof_img, df["img_target"].values)
 
-    return metrics
+    print(' -> CV Scores :')
+    print(f'Study : {score_study :.4f}')
+    print(f'Image : {score_img :.4f}')
+
+    return pred_oof_study, pred_oof_img

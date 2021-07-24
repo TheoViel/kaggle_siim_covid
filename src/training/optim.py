@@ -1,6 +1,7 @@
 import torch
-import numpy as np
 import torch.nn as nn
+import torch.nn.functional as F
+
 from params import DEVICE
 
 LOSSES = ["CrossEntropyLoss", "BCELoss", "BCEWithLogitsLoss"]
@@ -91,85 +92,56 @@ def define_optimizer(name, params, lr=1e-3):
     return optimizer
 
 
-def sigmoid_rampup(current, rampup_length):
-    """
-    Exponential rampup from https://arxiv.org/abs/1610.02242.
-    This is used for scheduling the mean teacher loss.
+class FocalTverskyLoss(nn.Module):
+    def __init__(self, weight=None, size_average=True):
+        super(FocalTverskyLoss, self).__init__()
 
-    Args:
-        current (int): Point to evaluate the function at.
-        rampup_length (int): Number of steps to reach 1.
+    def forward(self, inputs, targets, smooth=1, alpha=0.35, beta=0.65, gamma=2):
+        # larger betas weight recall more than precision  - # alpha=0.3, beta=0.7
+        bs = inputs.size(0)
 
-    Returns:
-        float: Current value.
-    """
+        inputs = torch.sigmoid(inputs)
+        inputs = inputs.view(bs, -1)
+        targets = targets.view(bs, -1)
 
-    if rampup_length == 0:
-        return 1.0
-    else:
-        current = np.clip(current, 0.0, rampup_length)
-        phase = 1.0 - current / rampup_length
-        return float(np.exp(-5.0 * phase * phase))
+        tp = (inputs * targets).sum(-1)
+        fp = ((1 - targets) * inputs).sum(-1)
+        fn = (targets * (1 - inputs)).sum(-1)
+
+        tversky = (tp + smooth) / (tp + alpha * fp + beta * fn + smooth)
+        return (1 - tversky) ** gamma
 
 
-class ConsistencyLoss(nn.Module):
-    """
-    Mean teacher consistency loss from https://arxiv.org/abs/1703.01780.
-    """
-    def __init__(self, config, activation, steps_per_epoch):
-        """
-        Constructor
-
-        Args:
-            config (dict): Mean teacher parameters.
-            activation (str): Activation to apply. Support sigmoid and softmax.
-            steps_per_epoch (int): Number of training steps per epochs.
-        """
+class CovidLoss(nn.Module):
+    def __init__(self):
         super().__init__()
-        self.config = config
-        self.activation = activation
-        self.steps_per_epoch = steps_per_epoch
-        self.mse = nn.MSELoss(reduction="none")
+        self.bce = nn.BCEWithLogitsLoss(reduction="none")
+        self.ce = nn.CrossEntropyLoss(reduction="none")
+        self.focal_tversky = FocalTverskyLoss()
 
-    def get_weight(self, step):
-        """
-        Returns the weighting of the loss.
+        self.w_bce = 0.75
+        self.seg_loss_w = 0.5
 
-        Args:
-            step (int): Current training step
-
-        Returns:
-            float: Weighting.
-        """
-        return self.config['weight'] * sigmoid_rampup(
-            step, self.config['rampup_epochs'] * self.steps_per_epoch
+    def compute_seg_loss(self, preds, truth):
+        truth = F.interpolate(
+            truth.unsqueeze(1), size=preds[0].size()[-2:], mode='bilinear', align_corners=False
         )
 
-    def forward(self, student_pred, teacher_pred, step):
-        """
-        Comptues the loss function.
+        losses = [
+            self.w_bce * self.bce(pred, truth).mean((1, 2, 3)) +
+            (1 - self.w_bce) * self.focal_tversky(pred, truth)
+            for pred in preds
+        ]
 
-        Args:
-            student_pred (torch tensor [BS x C or BS]): Predictions of the student model.
-            teacher_pred (torch tensor [BS x C or BS]): Predictions of the teacher model.
-            step (int): Current training step.
+        return torch.stack(losses, -1).sum(-1)
 
-        Returns:
-            torch tensor [BS]: Loss value.
-        """
-        teacher_pred = teacher_pred.view(student_pred.size())
-        weight = self.get_weight(step)
+    def __call__(self, pred_study, pred_img, preds_mask, y_study, y_img, y_mask, apply_mix=False):
+        if apply_mix:
+            raise NotImplementedError
 
-        if self.activation == "sigmoid":
-            student_pred = torch.sigmoid(student_pred)
-            teacher_pred = torch.sigmoid(teacher_pred)
-        elif self.activation == "softmax":
-            student_pred = torch.softmax(student_pred, -1)
-            teacher_pred = torch.softmax(teacher_pred, -1)
+        seg_loss = self.compute_seg_loss(preds_mask, y_mask)
 
-        loss = self.mse(student_pred, teacher_pred)
+        study_loss = self.ce(pred_study, y_study.long())
+        img_loss = self.bce(pred_img.view(y_img.size()), y_img)
 
-        if len(loss.size()) == 2:
-            loss = loss.mean(-1)
-
-        return loss * weight
+        return self.seg_loss_w * seg_loss + (1 - self.seg_loss_w) * (img_loss + study_loss)

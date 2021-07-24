@@ -13,6 +13,7 @@ def prepare_dataframe():
     df_study = pd.read_csv(DATA_PATH + 'train_study_level.csv')
     df_image = pd.read_csv(DATA_PATH + 'train_image_level.csv')
     df = pd.read_csv(DATA_PATH + f'df_train_{SIZE}.csv')
+    folds = pd.read_csv(DATA_PATH + 'covid_folds.csv')
 
     df_study['study_id'] = df_study['id'].apply(lambda x: x.split('_')[0])
     df_study = df_study.rename(columns={c: c.split(' ')[0].lower() for c in df_study.columns})
@@ -22,6 +23,7 @@ def prepare_dataframe():
     df_image['image_id'] = df_image['image_id'].apply(lambda x: x.split('_')[0])
     df_image['boxes'] = df_image['boxes'].apply(treat_boxes)
     df_image['label'] = df_image['label'].apply(lambda x: x.split(' ')[0])
+    df_image['img_target'] = (df_image['label'] == "opacity").astype(int)
 
     df['shape'] = df['shape'].apply(lambda x: np.array(x[1:-1].split(', ')).astype(int))
     df['crop_starts'] = df['crop_starts'].apply(lambda x: np.array(x[1:-1].split(', ')).astype(int))
@@ -29,6 +31,10 @@ def prepare_dataframe():
     df_image = df_image.merge(df_study, on="study_id", how="left")
     df = df.merge(df_image, on=['study_id', 'image_id'])
     df['study_label'] = [CLASSES[c] for c in df[CLASSES].values.argmax(-1)]
+
+    folds['image_id'] = folds['image_id'].apply(lambda x: x.split('_')[0])
+    folds = folds[['image_id', 'kfold']]
+    df = df.merge(folds, on='image_id', how='left')
 
     return df.reset_index(drop=True)
 

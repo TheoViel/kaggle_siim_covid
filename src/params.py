@@ -17,6 +17,7 @@ TRAIN_DCM_PATH = DCM_PATH + "train/"
 TEST_DCM_PATH = DCM_PATH + "test/"
 
 CLASSES = ["negative", "typical", "indeterminate", "atypical"]
+CLASSES_IMG = ["none", "opacity"]
 
 NUM_CLASSES = len(CLASSES)
 
