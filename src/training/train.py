@@ -3,7 +3,7 @@ import torch
 import numpy as np
 from transformers import get_linear_schedule_with_warmup
 
-from utils.metrics import per_class_average_precision_score
+from utils.metrics import per_class_average_precision_score, study_level_map
 from training.loader import define_loaders
 # from training.mix import cutmix_data, mixup_data
 from training.optim import CovidLoss, define_optimizer
@@ -123,9 +123,13 @@ def fit(
                 avg_loss += loss.item() / len(train_loader)
 
                 scaler.step(optimizer)
+
+                scale = scaler.get_scale()
                 scaler.update()
 
-                scheduler.step()
+                if scale == scaler.get_scale():
+                    scheduler.step()
+
                 for param in model.parameters():
                     param.grad = None
 
@@ -163,8 +167,8 @@ def fit(
                     preds_study = np.concatenate([preds_study, pred_study.cpu().numpy()])
                     preds_img = np.concatenate([preds_img, pred_img.cpu().numpy()])
 
-                study_ap = per_class_average_precision_score(
-                    preds_study, val_dataset.study_targets, num_classes=num_classes
+                study_ap = study_level_map(
+                    preds_study, val_dataset.study_targets, val_dataset.studies
                 )
                 img_ap = per_class_average_precision_score(preds_img, val_dataset.img_targets)
 
@@ -180,7 +184,7 @@ def fit(
 
             if (epoch + 1 >= first_epoch_eval) or (epoch + 1 == epochs):
                 print(
-                    f"val_loss={avg_val_loss:.3f} \t study_ap={study_ap:.3f} \t img_ap={img_ap:.3f}"
+                    f"val_loss={avg_val_loss:.3f}\t study_map={study_ap:.3f}\t img_map={img_ap:.3f}"
                 )
             else:
                 print("")

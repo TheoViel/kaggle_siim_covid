@@ -1,5 +1,8 @@
 import numpy as np
+import pandas as pd
 from sklearn.metrics import average_precision_score
+
+from params import CLASSES, NUM_CLASSES
 
 
 def per_class_average_precision_score(pred, truth, num_classes=1, average=True):
@@ -15,3 +18,20 @@ def per_class_average_precision_score(pred, truth, num_classes=1, average=True):
         return np.mean(scores)
     else:
         return np.array(scores)
+
+
+def study_level_map(pred, truth, studies):
+    df = pd.DataFrame({"study": studies})
+
+    if len(truth.shape) > 1:
+        truth = truth.argmax(-1)
+    df["truth"] = truth
+
+    pred_cols = [c + "_pred" for c in CLASSES]
+    for i, c in enumerate(pred_cols):
+        df[c] = pred[:, i]
+
+    df_study = df.groupby('study').agg(np.mean)
+    return per_class_average_precision_score(
+        df_study[pred_cols].values, df_study["truth"].values, num_classes=NUM_CLASSES
+    ) * 2/3

@@ -35,7 +35,7 @@ class CovidModel(nn.Module):
         super().__init__()
         self.encoder = encoder
         self.num_classes = num_classes
-        self.nb_ft = encoder.fc.in_features
+        self.nb_ft = encoder.nb_ft
 
         if reduce_stride:
             if "resnext" in self.encoder.name:
@@ -47,7 +47,7 @@ class CovidModel(nn.Module):
             else:
                 raise NotImplementedError
 
-        self.mask_head_3 = self.get_mask_head(self.nb_ft // 2)
+        self.mask_head_3 = self.get_mask_head(self.encoder.nb_ft_int)
         self.mask_head_4 = self.get_mask_head(self.nb_ft)
 
         self.key_conv = nn.Conv2d(1, 1, kernel_size=3, padding=1)
@@ -102,7 +102,8 @@ class CovidModel(nn.Module):
         mask_4 = self.mask_head_4(x4)
         masks = [mask_3, mask_4]
 
-        pooled = self.attention_mechanism(x4, masks)
+        # pooled = self.attention_mechanism(x4, masks)
+        pooled = x4.mean(-1).mean(-1)
 
         logits_img = self.logits_img(pooled)
         logits_study = self.logits_study(pooled)

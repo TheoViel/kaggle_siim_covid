@@ -120,18 +120,21 @@ class CovidLoss(nn.Module):
         self.focal_tversky = FocalTverskyLoss()
 
         self.w_bce = 0.75
-        self.seg_loss_w = 0.5
+        self.w_seg_loss = 0.5
+        self.w_study = 2
+        self.w_img = 1
 
     def compute_seg_loss(self, preds, truth):
-        truth = F.interpolate(
-            truth.unsqueeze(1), size=preds[0].size()[-2:], mode='bilinear', align_corners=False
-        )
+        losses = []
+        truth = truth.unsqueeze(1)
 
-        losses = [
-            self.w_bce * self.bce(pred, truth).mean((1, 2, 3)) +
-            (1 - self.w_bce) * self.focal_tversky(pred, truth)
-            for pred in preds
-        ]
+        for pred in preds:
+            truth = F.interpolate(
+                truth, size=pred.size()[-2:], mode='bilinear', align_corners=False
+            )
+            loss = self.w_bce * self.bce(pred, truth).mean((1, 2, 3))
+            loss += (1 - self.w_bce) * self.focal_tversky(pred, truth)
+            losses.append(loss)
 
         return torch.stack(losses, -1).sum(-1)
 
@@ -141,7 +144,7 @@ class CovidLoss(nn.Module):
 
         seg_loss = self.compute_seg_loss(preds_mask, y_mask)
 
-        study_loss = self.ce(pred_study, y_study.long())
-        img_loss = self.bce(pred_img.view(y_img.size()), y_img)
+        study_loss = self.w_study * self.ce(pred_study, y_study.long())
+        img_loss = self.w_img * self.bce(pred_img.view(y_img.size()), y_img)
 
-        return self.seg_loss_w * seg_loss + (1 - self.seg_loss_w) * (img_loss + study_loss)
+        return self.w_seg_loss * seg_loss + (1 - self.w_seg_loss) * (img_loss + study_loss)

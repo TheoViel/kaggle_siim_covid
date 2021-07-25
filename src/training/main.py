@@ -8,7 +8,7 @@ from training.train import fit
 from data.dataset import CovidClsDataset
 from data.transforms import get_transfos_cls
 from model_zoo.models import get_model
-from utils.metrics import per_class_average_precision_score
+from utils.metrics import per_class_average_precision_score, study_level_map
 from utils.torch import seed_everything, count_parameters, save_model_weights
 
 
@@ -143,13 +143,14 @@ def k_fold(config, df, df_extra=None, log_folder=None):
         np.save(log_folder + "pred_oof_study.npy", pred_oof_study)
         np.save(log_folder + "pred_oof_img.npy", pred_oof_img)
 
-    score_study = per_class_average_precision_score(
-        pred_oof_study, df[CLASSES].values, num_classes=config.num_classes
+    score_study = study_level_map(
+        pred_oof_study, df[CLASSES].values, df["study_id"]
     )
+
     score_img = per_class_average_precision_score(pred_oof_img, df["img_target"].values)
 
-    print(' -> CV Scores :')
-    print(f'Study : {score_study :.4f}')
-    print(f'Image : {score_img :.4f}')
+    print('CV Scores :')
+    print(f' -> Study : {score_study :.4f}')
+    print(f' -> Image : {score_img :.4f}')
 
     return pred_oof_study, pred_oof_img
