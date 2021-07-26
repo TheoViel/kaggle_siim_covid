@@ -40,14 +40,14 @@ def train(config, df_train, df_val, fold, log_folder=None):
     train_dataset = CovidClsDataset(
         df_train,
         root_dir=config.root_dir,
-        transforms=get_transfos_cls(augment=True),
+        transforms=get_transfos_cls(augment=True, mean=model.mean, std=model.std),
         train=True,
     )
 
     val_dataset = CovidClsDataset(
         df_val,
         root_dir=config.root_dir,
-        transforms=get_transfos_cls(augment=False),
+        transforms=get_transfos_cls(augment=False, mean=model.mean, std=model.std),
         train=True,
     )
 

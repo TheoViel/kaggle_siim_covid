@@ -135,23 +135,19 @@ def get_tranfos_inference(mean, std):
     )
 
 
-def get_transfos_cls(
-    augment=True, visualize=False, mean=MEAN, std=STD, bbox_format="yolo"
-):
+def get_transfos_cls(augment=True, mean=None, std=None):
     """
     Returns transformations for classification.
 
     Args:
         augment (bool, optional): Whether to apply augmentations. Defaults to True.
-        visualize (bool, optional): Whether to use transforms for visualization. Defaults to False.
-        mean (np array [3], optional): Mean for normalization. Defaults to MEAN.
-        std (np array [3], optional): Standard deviation for normalization. Defaults to STD.
-        bbox_format (str, optional): Bounding box format. Defaults to "yolo".
+        mean (np array [3], optional): Mean for normalization. Defaults to None.
+        std (np array [3], optional): Standard deviation for normalization. Defaults to None.
 
     Returns:
         albumentation transforms: transforms.
     """
-    if visualize:
+    if mean is None or std is None:
         normalizer = albu.Compose(
             [
                 AT.transforms.ToTensorV2(),
@@ -171,45 +167,40 @@ def get_transfos_cls(
         return albu.Compose(
             [
                 albu.ShiftScaleRotate(
-                    scale_limit=0.1, shift_limit=0, rotate_limit=20, p=0.5
+                    scale_limit=0.2, shift_limit=0, rotate_limit=15, p=0.5
                 ),
                 albu.HorizontalFlip(p=0.5),
                 color_transforms(p=0.5),
                 blur_transforms(p=0.5),
                 distortion_transforms(p=0.25),
-                dropout_transforms(p=0.1),
+                # dropout_transforms(p=0.1),
                 normalizer,
             ],
-            # bbox_params=albu.BboxParams(
-            #     format=bbox_format, label_fields=["class_labels"], min_visibility=0.1
-            # ),
         )
     else:
         return albu.Compose(
             [
                 normalizer,
             ],
-            # bbox_params=albu.BboxParams(format=bbox_format, label_fields=["class_labels"]),
         )
 
 
 def get_transfos_det(
-    augment=True, visualize=False, mean=MEAN, std=STD, bbox_format="yolo"
+    augment=True, mean=None, std=None, bbox_format="yolo"
 ):
     """
     Returns transformations for detection.
 
     Args:
         augment (bool, optional): Whether to apply augmentations. Defaults to True.
-        visualize (bool, optional): Whether to use transforms for visualization. Defaults to False.
-        mean (np array [3], optional): Mean for normalization. Defaults to MEAN.
-        std (np array [3], optional): Standard deviation for normalization. Defaults to STD.
+        mean (np array [3], optional): Mean for normalization. Defaults to None.
+        std (np array [3], optional): Standard deviation for normalization. Defaults to None.
         bbox_format (str, optional): Bounding box format. Defaults to "yolo".
 
     Returns:
         albumentation transforms: transforms.
     """
-    if visualize:
+    if mean is None or std is None:
         normalizer = albu.Compose(
             [
                 AT.transforms.ToTensorV2(),

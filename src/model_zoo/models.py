@@ -36,6 +36,8 @@ class CovidModel(nn.Module):
         self.encoder = encoder
         self.num_classes = num_classes
         self.nb_ft = encoder.nb_ft
+        self.mean = encoder.mean
+        self.std = encoder.std
 
         if reduce_stride:
             if "resnext" in self.encoder.name:
@@ -94,8 +96,6 @@ class CovidModel(nn.Module):
         return torch.bmm(fts, att).view(-1, self.nb_ft)
 
     def forward(self, x):
-        # F.interpolate(truth_mask, size=(48,48), mode='bilinear', align_corners=False)
-
         x1, x2, x3, x4 = self.encoder.extract_features(x)
 
         mask_3 = self.mask_head_3(x3)

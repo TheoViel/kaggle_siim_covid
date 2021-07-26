@@ -1,12 +1,14 @@
 import time
 import torch
 import numpy as np
+from torch.optim import Adam
 from transformers import get_linear_schedule_with_warmup
 
 from utils.metrics import per_class_average_precision_score, study_level_map
 from training.loader import define_loaders
-# from training.mix import cutmix_data, mixup_data
-from training.optim import CovidLoss, define_optimizer
+from training.mix import cutmix_data
+from training.losses import CovidLoss
+from training.optim import RAdam, Lookahead
 
 
 ONE_HOT = np.eye(10)
@@ -57,12 +59,19 @@ def fit(
         numpy array [len(val_dataset) x num_classes]: Last prediction on the validation data.
         pandas dataframe: Training history.
     """
-
-    avg_val_loss = 0.0
-    # mix_fct = cutmix_data if mix == "cutmix" else mixup_data  # TODO
+    avg_val_loss = 0.
+    lam = 1
 
     # Optimizer
-    optimizer = define_optimizer(optimizer_name, model.parameters(), lr=lr)
+    if optimizer_name == "Adam":
+        optimizer = Adam(model.parameters(), lr=lr)
+    else:
+        optimizer = Lookahead(
+            RAdam(filter(lambda p: p.requires_grad, model.parameters()), lr=lr, use_gc=True),
+            alpha=0.5,
+            k=5
+        )
+
     scaler = torch.cuda.amp.GradScaler()
 
     # Data loaders
@@ -99,15 +108,9 @@ def fit(
             # Mix data
             apply_mix = np.random.rand() < mix_proba
             if apply_mix:
-                raise NotImplementedError
-            #     x, y_a, y_b, y_aux_a, y_aux_b, w_a, w_b, lam = mix_fct(
-            #         x, y_batch, y_batch_aux, sample_weight, alpha=mix_alpha, device=device
-            #     )
-            #     y_batch = torch.clamp(y_a + y_b, 0, 1)
-            #     y_batch_aux = lam * y_aux_a + (1 - lam) * y_aux_b
-            #     sample_weight = w_a * lam + (1 - lam) * w_b
-            # else:
-            #     y_a, y_b, y_aux_a, y_aux_b = None, None, None, None
+                x, y_study, y_img, masks, lam = cutmix_data(
+                    x, y_study, y_img, masks, alpha=mix_alpha, device=device
+                )
 
             with torch.cuda.amp.autocast():
                 # Forward
@@ -115,7 +118,7 @@ def fit(
 
                 # Compute losses
                 loss = loss_fct(
-                    pred_study, pred_img, preds_mask, y_study, y_img, masks, apply_mix=apply_mix
+                    pred_study, pred_img, preds_mask, y_study, y_img, masks, mix_lambda=lam
                 ).mean()
 
                 # Backward & parameter update
@@ -157,7 +160,7 @@ def fit(
                         [p.detach() for p in preds_mask],
                         y_study,
                         y_img,
-                        masks
+                        masks,
                     ).mean()
                     avg_val_loss += loss.mean().item() / len(val_loader)
 
@@ -189,8 +192,6 @@ def fit(
             else:
                 print("")
 
-    if mix_proba:
-        del (y_a, y_b, y_aux_a, y_aux_b, w_a, w_b,)
     del (val_loader, train_loader, loss, x, masks, y_study, y_img, pred_study, pred_img, preds_mask)
     torch.cuda.empty_cache()
 

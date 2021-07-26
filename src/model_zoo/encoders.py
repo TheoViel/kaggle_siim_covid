@@ -1,7 +1,10 @@
 import timm
 import torch
+import numpy as np
 import torch.nn.functional as F
 import resnest.torch as resnest_torch
+
+from params import MEAN, STD
 
 
 def get_encoder(name):
@@ -43,6 +46,13 @@ def get_encoder(name):
         model.nb_ft = model.fc.in_features
         model.nb_ft_int = model.nb_ft // 2
         model.extract_features = lambda x: extract_features_resnet(model, x)
+
+    if "efficientnetv2" in name:
+        model.mean = np.array([0.5, 0.5, 0.5])
+        model.std = np.array([0.5, 0.5, 0.5])
+    else:
+        model.mean = MEAN
+        model.std = STD
 
     model.name = name
     return model
