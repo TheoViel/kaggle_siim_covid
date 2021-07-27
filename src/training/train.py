@@ -8,7 +8,6 @@ from utils.metrics import per_class_average_precision_score, study_level_map
 from training.loader import define_loaders
 from training.mix import cutmix_data
 from training.losses import CovidLoss
-from training.optim import RAdam, Lookahead
 
 
 ONE_HOT = np.eye(10)
@@ -19,7 +18,6 @@ def fit(
     train_dataset,
     val_dataset,
     samples_per_patient=0,
-    optimizer_name="adam",
     epochs=50,
     batch_size=32,
     val_bs=32,
@@ -31,6 +29,7 @@ def fit(
     num_classes=1,
     verbose=1,
     first_epoch_eval=0,
+    use_fp16=True,
     device="cuda"
 ):
     """
@@ -41,7 +40,6 @@ def fit(
         train_dataset (ColorBCCDataset): Dataset to train with.
         val_dataset (ColorBCCDataset): Dataset to validate with.
         samples_per_patient (int, optional): Number of images to use per patient. Defaults to 0.
-        optimizer_name (str, optional): Optimizer name. Defaults to 'adam'.
         epochs (int, optional): Number of epochs. Defaults to 50.
         batch_size (int, optional): Training batch size. Defaults to 32.
         val_bs (int, optional): Validation batch size. Defaults to 32.
@@ -53,6 +51,7 @@ def fit(
         num_classes (int, optional): Number of classes. Defaults to 1.
         verbose (int, optional): Period (in epochs) to display logs at. Defaults to 1.
         first_epoch_eval (int, optional): Epoch to start evaluating at. Defaults to 0.
+        use_fp16 (bool, optional): Whether to use half precision. Defaults to True.
         device (str, optional): Device for torch. Defaults to "cuda".
 
     Returns:
@@ -63,15 +62,7 @@ def fit(
     lam = 1
 
     # Optimizer
-    if optimizer_name == "Adam":
-        optimizer = Adam(model.parameters(), lr=lr)
-    else:
-        optimizer = Lookahead(
-            RAdam(filter(lambda p: p.requires_grad, model.parameters()), lr=lr, use_gc=True),
-            alpha=0.5,
-            k=5
-        )
-
+    optimizer = Adam(model.parameters(), lr=lr)
     scaler = torch.cuda.amp.GradScaler()
 
     # Data loaders
@@ -112,7 +103,29 @@ def fit(
                     x, y_study, y_img, masks, alpha=mix_alpha, device=device
                 )
 
-            with torch.cuda.amp.autocast():
+            if use_fp16:
+                with torch.cuda.amp.autocast():
+                    # Forward
+                    pred_study, pred_img, preds_mask = model(x)
+
+                    # Compute losses
+                    loss = loss_fct(
+                        pred_study, pred_img, preds_mask, y_study, y_img, masks, mix_lambda=lam
+                    ).mean()
+
+                    # Backward & parameter update
+                    scaler.scale(loss).backward()
+                    avg_loss += loss.item() / len(train_loader)
+
+                    scaler.step(optimizer)
+
+                    scale = scaler.get_scale()
+                    scaler.update()
+
+                    if scale == scaler.get_scale():
+                        scheduler.step()
+
+            else:
                 # Forward
                 pred_study, pred_img, preds_mask = model(x)
 
@@ -122,19 +135,14 @@ def fit(
                 ).mean()
 
                 # Backward & parameter update
-                scaler.scale(loss).backward()
+                loss.backward()
                 avg_loss += loss.item() / len(train_loader)
 
-                scaler.step(optimizer)
+                optimizer.step()
+                scheduler.step()
 
-                scale = scaler.get_scale()
-                scaler.update()
-
-                if scale == scaler.get_scale():
-                    scheduler.step()
-
-                for param in model.parameters():
-                    param.grad = None
+            for param in model.parameters():
+                param.grad = None
 
         model.eval()
         avg_val_loss = 0.
@@ -165,8 +173,8 @@ def fit(
                     avg_val_loss += loss.mean().item() / len(val_loader)
 
                     # Update predictions
-                    pred_study = torch.softmax(pred_study, -1)
-                    pred_img = torch.sigmoid(pred_img).view(-1)
+                    pred_study = torch.softmax(pred_study, -1).detach()
+                    pred_img = torch.sigmoid(pred_img).view(-1).detach()
                     preds_study = np.concatenate([preds_study, pred_study.cpu().numpy()])
                     preds_img = np.concatenate([preds_img, pred_img.cpu().numpy()])
 

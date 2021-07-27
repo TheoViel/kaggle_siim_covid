@@ -118,23 +118,6 @@ def dropout_transforms(p=0.5):
     )
 
 
-def get_tranfos_inference(mean, std):
-    """
-    Returns transformations for inference.
-
-    Returns:
-        albumentation transforms: transforms.
-    """
-
-    return albu.Compose(
-        [
-            albu.Normalize(mean=mean, std=std),
-            AT.transforms.ToTensorV2(),
-        ],
-        p=1,
-    )
-
-
 def get_transfos_cls(augment=True, mean=None, std=None):
     """
     Returns transformations for classification.
@@ -239,3 +222,20 @@ def get_transfos_det(
             ],
             bbox_params=albu.BboxParams(format=bbox_format, label_fields=["class_labels"]),
         )
+
+
+def get_tranfos_inference(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]):
+    """
+    Returns transformations for inference.
+
+    Returns:
+        albumentation transforms: transforms.
+    """
+
+    return albu.Compose(
+        [
+            albu.Normalize(mean=mean, std=std),
+            AT.transforms.ToTensorV2(),
+        ],
+        p=1,
+    )

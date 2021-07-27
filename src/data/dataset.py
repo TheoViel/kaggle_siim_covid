@@ -14,7 +14,6 @@ class CovidClsDataset(Dataset):
         root_dir="",
         transforms=None,
         train=False,
-        bbox_format="yolo"
     ):
         """
         Constructor
@@ -161,3 +160,47 @@ class CovidDetDataset(Dataset):
         y_img = torch.tensor(self.img_targets[idx], dtype=torch.float)
 
         return image, mask, y_study, y_img, boxes
+
+
+class CovidInfDataset(Dataset):
+    def __init__(
+        self,
+        df,
+        root_dir="",
+        transforms=None,
+    ):
+        """
+        Constructor
+
+        Args:
+            df (pandas dataframe): Metadata.
+            root_dir (str): Directory with all the images. Defaults to "".
+            img_name (str, optional): Column corresponding to the image. Defaults to "img_name".
+        """
+        self.df = df
+        self.root_dir = root_dir
+        self.transforms = transforms
+
+        self.img_names = df["save_name"].values
+
+    def __len__(self):
+        return self.df.shape[0]
+
+    def __getitem__(self, idx):
+        """
+        Item accessor
+
+        Args:
+            idx (int): Index.
+
+        Returns:
+            torch tensor [C x H x W]: Image.
+            torch tensor [NUM_CLASSES]: Label.
+        """
+        image = cv2.imread(self.root_dir + self.img_names[idx])
+
+        if self.transforms:
+            transformed = self.transforms(image=image)
+            image = transformed["image"]
+
+        return image

@@ -47,7 +47,7 @@ class CovidLoss(nn.Module):
             loss += (1 - self.w_bce) * self.focal_tversky(pred, truth)
             losses.append(loss)
 
-        return torch.stack(losses, -1).sum(-1)
+        return torch.stack(losses, -1).sum(-1)  # mean ?
 
     def compute_study_loss(self, pred, truth, mix_lambda=1):
         if isinstance(truth, list):

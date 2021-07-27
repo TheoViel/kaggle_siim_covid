@@ -3,10 +3,10 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
 
-def plot_sample(img, boxes, bbox_format="yolo"):
+def plot_sample(img, boxes, bbox_format="yolo", axis=False):
     # plt.figure(figsize=(9, 9))
     plt.imshow(img, cmap="gray")
-    plt.axis(False)
+    plt.axis(axis)
 
     for box in boxes:
         if bbox_format == "yolo":
@@ -18,6 +18,11 @@ def plot_sample(img, boxes, bbox_format="yolo"):
         elif bbox_format == "pascal_voc":
             rect = Rectangle(
                 (box[0], box[1]), box[2] - box[0], box[3] - box[1],
+                linewidth=2, edgecolor='salmon', facecolor='none'
+            )
+        elif bbox_format == "coco":
+            rect = Rectangle(
+                (box[0], box[1]), box[2], box[3],
                 linewidth=2, edgecolor='salmon', facecolor='none'
             )
         else:

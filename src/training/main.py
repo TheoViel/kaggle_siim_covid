@@ -1,3 +1,4 @@
+import gc
 import torch
 import numpy as np
 import pandas as pd
@@ -32,7 +33,7 @@ def train(config, df_train, df_val, fold, log_folder=None):
 
     model = get_model(
         config.selected_model,
-        reduce_stride=config.reduce_stride,
+        use_unet=config.use_unet,
         num_classes=config.num_classes,
     ).to(config.device)
     model.zero_grad()
@@ -57,25 +58,26 @@ def train(config, df_train, df_val, fold, log_folder=None):
     print(f"    -> {len(val_dataset)} validation images")
     print(f"    -> {n_parameters} trainable parameters\n")
 
-    pred_val_study, pred_val_img = fit(
-        model,
-        train_dataset,
-        val_dataset,
-        samples_per_patient=config.samples_per_patient,
-        optimizer_name=config.optimizer,
-        epochs=config.epochs,
-        batch_size=config.batch_size,
-        val_bs=config.val_bs,
-        lr=config.lr,
-        warmup_prop=config.warmup_prop,
-        mix=config.mix,
-        mix_proba=config.mix_proba,
-        mix_alpha=config.mix_alpha,
-        num_classes=config.num_classes,
-        verbose=config.verbose,
-        first_epoch_eval=config.first_epoch_eval,
-        device=config.device,
-    )
+    for epochs, lr in zip(config.epochs, config.lr):
+        pred_val_study, pred_val_img = fit(
+            model,
+            train_dataset,
+            val_dataset,
+            samples_per_patient=config.samples_per_patient,
+            epochs=epochs,
+            batch_size=config.batch_size,
+            val_bs=config.val_bs,
+            lr=lr,
+            warmup_prop=config.warmup_prop,
+            mix=config.mix,
+            mix_proba=config.mix_proba,
+            mix_alpha=config.mix_alpha,
+            num_classes=config.num_classes,
+            verbose=config.verbose,
+            first_epoch_eval=config.first_epoch_eval,
+            use_fp16=config.use_fp16,
+            device=config.device,
+        )
 
     if config.save_weights and log_folder is not None:
         save_model_weights(
@@ -85,6 +87,7 @@ def train(config, df_train, df_val, fold, log_folder=None):
         )
 
     del (model, train_dataset, val_dataset)
+    gc.collect()
     torch.cuda.empty_cache()
 
     return pred_val_study, pred_val_img

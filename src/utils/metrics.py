@@ -20,7 +20,7 @@ def per_class_average_precision_score(pred, truth, num_classes=1, average=True):
         return np.array(scores)
 
 
-def study_level_map(pred, truth, studies):
+def study_level_map(pred, truth, studies, agg=np.mean):
     df = pd.DataFrame({"study": studies})
 
     if len(truth.shape) > 1:
@@ -31,7 +31,7 @@ def study_level_map(pred, truth, studies):
     for i, c in enumerate(pred_cols):
         df[c] = pred[:, i]
 
-    df_study = df.groupby('study').agg(np.mean)
+    df_study = df.groupby('study').agg(agg)
     return per_class_average_precision_score(
         df_study[pred_cols].values, df_study["truth"].values, num_classes=NUM_CLASSES
     ) * 2/3

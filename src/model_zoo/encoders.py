@@ -6,6 +6,17 @@ import resnest.torch as resnest_torch
 
 from params import MEAN, STD
 
+BLOCKS_IDX = {
+    'tf_efficientnetv2_s_in21ft1k': [1, 2, 4, 5],
+    'tf_efficientnetv2_m_in21ft1k': [1, 2, 4, 6],
+    'tf_efficientnet_b0_ns': [1, 2, 4, 6],
+    'tf_efficientnet_b1_ns': [1, 2, 4, 6],
+    'tf_efficientnet_b2_ns': [1, 2, 4, 6],
+    'tf_efficientnet_b3_ns': [1, 2, 4, 6],
+    'tf_efficientnet_b4_ns': [1, 2, 4, 6],
+    'tf_efficientnet_b5_ns': [1, 2, 4, 6],
+}
+
 
 def get_encoder(name):
     """
@@ -25,7 +36,7 @@ def get_encoder(name):
         model = torch.hub.load("facebookresearch/WSL-Images", name)
     elif "resnext" in name or "resnet" in name or "densenet" in name:
         model = torch.hub.load("pytorch/vision:v0.6.0", name, pretrained=True)
-    elif "efficientnetv2" in name:
+    elif "efficientnet" in name:
         model = getattr(timm.models, name)(
             pretrained=True,
             drop_path_rate=0.2,
@@ -33,11 +44,12 @@ def get_encoder(name):
     else:
         raise NotImplementedError
 
-    if "efficientnetv2" in name:
-        # model.nb_ft = model.classifier.in_features
-        model.nb_ft = model.blocks[6][-1].conv_pwl.out_channels
-        model.nb_ft_int = model.blocks[4][-1].conv_pwl.out_channels
+    if "efficientnet" in name:
+        model.block_idx = BLOCKS_IDX[name]
+        model.nb_fts = [model.blocks[b][-1].conv_pwl.out_channels for b in model.block_idx]
+        model.nb_ft = model.nb_fts[-1]
         model.extract_features = lambda x: extract_features_efficientnet(model, x)
+
     elif "densenet" in name:
         model.nb_ft = model.classifier.in_features
         model.nb_ft_int = model.nb_ft // 2
@@ -86,8 +98,10 @@ def extract_features_efficientnet(self, x):
     features = []
     for i, b in enumerate(self.blocks):
         x = b(x)
-        if i in [1, 2, 4, 6]:
-            # print(x.size())
+        if i in self.block_idx:
             features.append(x)
+            # print(x.size())
+        # else:
+        #     print((x.size(), ))
 
     return features

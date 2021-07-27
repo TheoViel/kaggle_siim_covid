@@ -2,9 +2,10 @@ import torch
 import torch.nn as nn
 
 from model_zoo.encoders import get_encoder
+from model_zoo.unet import UnetDecoder
 
 
-def get_model(name, num_classes=1, reduce_stride=False):
+def get_model(name, num_classes=1, use_unet=False):
     """
     Loads a pretrained model.
     Supports ResNest, ResNext-wsl, EfficientNet, ResNext and encoder.
@@ -16,16 +17,16 @@ def get_model(name, num_classes=1, reduce_stride=False):
     Returns:
         torch model: Pretrained model
     """
-
     encoder = get_encoder(name)
-
-    model = CovidModel(encoder, num_classes=num_classes, reduce_stride=reduce_stride)
-
+    if use_unet:
+        model = CovidUnetModel(encoder, num_classes=num_classes)
+    else:
+        model = CovidModel(encoder, num_classes=num_classes)
     return model
 
 
 class CovidModel(nn.Module):
-    def __init__(self, encoder, num_classes=1, reduce_stride=False):
+    def __init__(self, encoder, num_classes=1):
         """
         Constructor.
 
@@ -39,21 +40,11 @@ class CovidModel(nn.Module):
         self.mean = encoder.mean
         self.std = encoder.std
 
-        if reduce_stride:
-            if "resnext" in self.encoder.name:
-                self.encoder.layer4[0].conv2.stride = (1, 1)
-                self.encoder.layer4[0].downsample[0].stride = (1, 1)
-            elif "resnet" in self.encoder.name:
-                self.encoder.layer4[0].conv1.stride = (1, 1)
-                self.encoder.layer4[0].downsample[0].stride = (1, 1)
-            else:
-                raise NotImplementedError
-
-        self.mask_head_3 = self.get_mask_head(self.encoder.nb_ft_int)
+        self.mask_head_3 = self.get_mask_head(self.encoder.nb_fts[2])
         self.mask_head_4 = self.get_mask_head(self.nb_ft)
 
-        self.key_conv = nn.Conv2d(1, 1, kernel_size=3, padding=1)
-        self.value_conv = nn.Conv2d(self.nb_ft, self.nb_ft, kernel_size=3, padding=1)
+        # self.key_conv = nn.Conv2d(1, 1, kernel_size=3, padding=1)
+        # self.value_conv = nn.Conv2d(self.nb_ft, self.nb_ft, kernel_size=3, padding=1)
 
         self.logits_img = nn.Linear(self.nb_ft, 1)
         self.logits_study = nn.Linear(self.nb_ft, num_classes)
@@ -103,6 +94,40 @@ class CovidModel(nn.Module):
         masks = [mask_3, mask_4]
 
         # pooled = self.attention_mechanism(x4, masks)
+        pooled = x4.mean(-1).mean(-1)
+
+        logits_img = self.logits_img(pooled)
+        logits_study = self.logits_study(pooled)
+
+        return logits_study, logits_img, masks
+
+
+class CovidUnetModel(nn.Module):
+    def __init__(self, encoder, num_classes=1):
+        """
+        Constructor.
+
+        Args:
+            encoder (nn.Module): encoder to build the model from.
+        """
+        super().__init__()
+        self.encoder = encoder
+        self.num_classes = num_classes
+        self.nb_ft = encoder.nb_ft
+        self.mean = encoder.mean
+        self.std = encoder.std
+
+        self.logits_img = nn.Linear(self.nb_ft, 1)
+        self.logits_study = nn.Linear(self.nb_ft, num_classes)
+
+        self.decoder = UnetDecoder(self.encoder.nb_fts)
+        self.conv = nn.Conv2d(16, 1, kernel_size=3, padding=1)
+
+    def forward(self, x):
+        x1, x2, x3, x4 = self.encoder.extract_features(x)
+
+        masks = [self.conv(self.decoder(x1, x2, x3, x4))]
+
         pooled = x4.mean(-1).mean(-1)
 
         logits_img = self.logits_img(pooled)

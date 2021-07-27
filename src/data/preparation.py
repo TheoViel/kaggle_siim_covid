@@ -73,4 +73,5 @@ def handle_duplicates(df, clusts, transpositions, plot=False):
             plt.show()
 
     df['label'] = df['boxes'].apply(lambda x: "opacity" if len(x) else "none")
+    df['img_target'] = (df['label'] == "opacity").astype(int)
     return df
