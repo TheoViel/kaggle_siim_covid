@@ -2,14 +2,14 @@ import gc
 import torch
 import numpy as np
 import pandas as pd
-
+from sklearn.metrics import roc_auc_score
 
 from params import CLASSES
 from training.train import fit
 from data.dataset import CovidClsDataset
 from data.transforms import get_transfos_cls
 from model_zoo.models import get_model
-from utils.metrics import per_class_average_precision_score, study_level_map
+from utils.metrics import study_level_map
 from utils.torch import seed_everything, count_parameters, save_model_weights
 
 
@@ -70,6 +70,7 @@ def train(config, df_train, df_val, fold, log_folder=None):
             model,
             train_dataset,
             val_dataset,
+            config.loss_config,
             samples_per_patient=config.samples_per_patient,
             optimizer=optimizer,
             epochs=epochs,
@@ -86,6 +87,9 @@ def train(config, df_train, df_val, fold, log_folder=None):
             use_fp16=config.use_fp16,
             device=config.device,
         )
+
+        config.loss_config['w_seg_loss'] = 0  # remove seg loss
+        config.loss_config["w_img"] /= 2  # more focus on multiclass
 
     if config.save_weights and log_folder is not None:
         save_model_weights(
@@ -158,10 +162,10 @@ def k_fold(config, df, df_extra=None, log_folder=None):
         pred_oof_study, df[CLASSES].values, df["study_id"]
     )
 
-    score_img = per_class_average_precision_score(pred_oof_img, df["img_target"].values)
+    score_img = roc_auc_score(df["img_target"].values, pred_oof_img)
 
     print('CV Scores :')
-    print(f' -> Study : {score_study :.4f}')
-    print(f' -> Image : {score_img :.4f}')
+    print(f' -> Study mAP : {score_study :.4f}')
+    print(f' -> Image AUC : {score_img :.4f}')
 
     return pred_oof_study, pred_oof_img

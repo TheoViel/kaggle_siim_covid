@@ -1,9 +1,10 @@
 import time
 import torch
 import numpy as np
+from sklearn.metrics import roc_auc_score
 from transformers import get_linear_schedule_with_warmup
 
-from utils.metrics import per_class_average_precision_score, study_level_map
+from utils.metrics import study_level_map
 from training.loader import define_loaders
 from training.mix import cutmix_data
 from training.losses import CovidLoss
@@ -17,6 +18,7 @@ def fit(
     model,
     train_dataset,
     val_dataset,
+    loss_config,
     samples_per_patient=0,
     optimizer="Adam",
     epochs=50,
@@ -40,6 +42,7 @@ def fit(
         model (torch model): Model.
         train_dataset (ColorBCCDataset): Dataset to train with.
         val_dataset (ColorBCCDataset): Dataset to validate with.
+        loss_config (dict): Loss config.
         samples_per_patient (int, optional): Number of images to use per patient. Defaults to 0.
         optimizer (str, optional): Optimizer name. Defaults to "Adam".
         epochs (int, optional): Number of epochs. Defaults to 50.
@@ -76,8 +79,8 @@ def fit(
         val_bs=val_bs
     )
 
-    # Losses
-    loss_fct = CovidLoss()
+    # Loss
+    loss_fct = CovidLoss(loss_config)
 
     # Scheduler
     num_warmup_steps = int(warmup_prop * epochs * len(train_loader))
@@ -147,8 +150,7 @@ def fit(
                 param.grad = None
 
         model.eval()
-        avg_val_loss = 0.
-        study_ap, img_ap = 0, 0
+        study_map, img_auc, avg_val_loss = 0, 0, 0
         preds_study = np.empty((0, num_classes))
         preds_img = np.empty((0))
 
@@ -180,10 +182,10 @@ def fit(
                     preds_study = np.concatenate([preds_study, pred_study.cpu().numpy()])
                     preds_img = np.concatenate([preds_img, pred_img.cpu().numpy()])
 
-                study_ap = study_level_map(
+                study_map = study_level_map(
                     preds_study, val_dataset.study_targets, val_dataset.studies
                 )
-                img_ap = per_class_average_precision_score(preds_img, val_dataset.img_targets)
+                img_auc = roc_auc_score(val_dataset.img_targets, preds_img)
 
         elapsed_time = time.time() - start_time
         if (epoch + 1) % verbose == 0:
@@ -197,7 +199,7 @@ def fit(
 
             if (epoch + 1 >= first_epoch_eval) or (epoch + 1 == epochs):
                 print(
-                    f"val_loss={avg_val_loss:.3f}\t study_map={study_ap:.3f}\t img_map={img_ap:.3f}"
+                    f"val_loss={avg_val_loss:.3f}\tstudy_map={study_map:.3f}\timg_auc={img_auc:.3f}"
                 )
             else:
                 print("")

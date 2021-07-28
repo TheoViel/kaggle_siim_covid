@@ -34,10 +34,9 @@ def predict(
     )
 
     with torch.no_grad():
-        preds_study = []
-        preds_img = []
         for batch in val_loader:
-            x = batch[0].to(device)
+            preds_study, preds_img = [], []
+            x = batch.to(device)
 
             pred_study, pred_img, _ = model(x)
             preds_study.append(torch.softmax(pred_study, -1).detach().cpu().numpy())
@@ -51,7 +50,11 @@ def predict(
 
             if scale_tta:
                 x = F.interpolate(
-                    x, size=x.size()[-2:] + 128, mode='bilinear', align_corners=False
+                    x,
+                    scale_factor=1.33,
+                    mode='bilinear',
+                    align_corners=False,
+                    recompute_scale_factor=False
                 )
                 pred_study, pred_img, _ = model(x)
                 preds_study.append(torch.softmax(pred_study, -1).detach().cpu().numpy())

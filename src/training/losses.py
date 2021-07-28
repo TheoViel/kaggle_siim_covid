@@ -24,16 +24,16 @@ class FocalTverskyLoss(nn.Module):
 
 
 class CovidLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, config):
         super().__init__()
         self.bce = nn.BCEWithLogitsLoss(reduction="none")
         self.ce = nn.CrossEntropyLoss(reduction="none")
         self.focal_tversky = FocalTverskyLoss()
 
-        self.w_bce = 0.75
-        self.w_seg_loss = 0.5
-        self.w_study = 2
-        self.w_img = 1
+        self.w_bce = config["w_bce"]
+        self.w_seg_loss = config["w_seg_loss"]
+        self.w_study = config["w_study"]
+        self.w_img = config["w_img"]
 
     def compute_seg_loss(self, preds, truth):
         losses = []
@@ -47,7 +47,7 @@ class CovidLoss(nn.Module):
             loss += (1 - self.w_bce) * self.focal_tversky(pred, truth)
             losses.append(loss)
 
-        return torch.stack(losses, -1).sum(-1)  # mean ?
+        return 2 * torch.stack(losses, -1).mean(-1)
 
     def compute_study_loss(self, pred, truth, mix_lambda=1):
         if isinstance(truth, list):

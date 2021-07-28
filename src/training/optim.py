@@ -18,17 +18,22 @@ def define_optimizer(name, params, lr=1e-3):
     Returns:
         torch optimizer: Optimizer.
     """
+    if "lookahead" in name.lower():
+        name = name.split('_')[0]
+        use_lookahead = True
+    else:
+        use_lookahead = False
+
     try:
         optimizer = getattr(torch.optim, name)(params, lr=lr)
     except AttributeError:
         if name.lower() == "radam":
-            optimizer = Lookahead(
-                RAdam(params, lr=lr, use_gc=True),
-                alpha=0.5,
-                k=5
-            )
+            optimizer = RAdam(params, lr=lr, use_gc=True)
         else:
             raise NotImplementedError
+
+    if use_lookahead:
+        optimizer = Lookahead(optimizer, alpha=0.5, k=5)
 
     return optimizer
 
