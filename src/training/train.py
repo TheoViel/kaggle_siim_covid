@@ -1,13 +1,13 @@
 import time
 import torch
 import numpy as np
-from torch.optim import Adam
 from transformers import get_linear_schedule_with_warmup
 
 from utils.metrics import per_class_average_precision_score, study_level_map
 from training.loader import define_loaders
 from training.mix import cutmix_data
 from training.losses import CovidLoss
+from training.optim import define_optimizer
 
 
 ONE_HOT = np.eye(10)
@@ -18,6 +18,7 @@ def fit(
     train_dataset,
     val_dataset,
     samples_per_patient=0,
+    optimizer="Adam",
     epochs=50,
     batch_size=32,
     val_bs=32,
@@ -40,6 +41,7 @@ def fit(
         train_dataset (ColorBCCDataset): Dataset to train with.
         val_dataset (ColorBCCDataset): Dataset to validate with.
         samples_per_patient (int, optional): Number of images to use per patient. Defaults to 0.
+        optimizer (str, optional): Optimizer name. Defaults to "Adam".
         epochs (int, optional): Number of epochs. Defaults to 50.
         batch_size (int, optional): Training batch size. Defaults to 32.
         val_bs (int, optional): Validation batch size. Defaults to 32.
@@ -62,7 +64,7 @@ def fit(
     lam = 1
 
     # Optimizer
-    optimizer = Adam(model.parameters(), lr=lr)
+    optimizer = define_optimizer(optimizer, model.parameters(), lr=lr)
     scaler = torch.cuda.amp.GradScaler()
 
     # Data loaders

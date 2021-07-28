@@ -56,19 +56,27 @@ def train(config, df_train, df_val, fold, log_folder=None):
 
     print(f"    -> {len(train_dataset)} training images")
     print(f"    -> {len(val_dataset)} validation images")
-    print(f"    -> {n_parameters} trainable parameters\n")
+    print(f"    -> {n_parameters} trainable parameters")
 
-    for epochs, lr in zip(config.epochs, config.lr):
+    for i, (epochs, lr, optimizer, warmup_prop) in enumerate(zip(
+        config.epochs, config.lr, config.optimizer, config.warmup_prop
+    )):
+        print(
+            f'\n - Training {i + 1} / {len(config.epochs)} : \t'
+            f'epochs: {epochs}\tlr: {lr:.1e}\twarmup_prop: {warmup_prop}\toptimizer: {optimizer}'
+        )
+
         pred_val_study, pred_val_img = fit(
             model,
             train_dataset,
             val_dataset,
             samples_per_patient=config.samples_per_patient,
+            optimizer=optimizer,
             epochs=epochs,
             batch_size=config.batch_size,
             val_bs=config.val_bs,
             lr=lr,
-            warmup_prop=config.warmup_prop,
+            warmup_prop=warmup_prop,
             mix=config.mix,
             mix_proba=config.mix_proba,
             mix_alpha=config.mix_alpha,
