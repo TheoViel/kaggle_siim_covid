@@ -9,6 +9,7 @@ from params import MEAN, STD
 BLOCKS_IDX = {
     'tf_efficientnetv2_s_in21ft1k': [1, 2, 4, 5],
     'tf_efficientnetv2_m_in21ft1k': [1, 2, 4, 6],
+    'tf_efficientnetv2_l_in21ft1k': [1, 2, 4, 6],
     'tf_efficientnet_b0_ns': [1, 2, 4, 6],
     'tf_efficientnet_b1_ns': [1, 2, 4, 6],
     'tf_efficientnet_b2_ns': [1, 2, 4, 6],

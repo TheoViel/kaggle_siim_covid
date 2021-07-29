@@ -14,3 +14,5 @@ input/test/
 *.png
 *.jpg
 *.jpeg
+dataset/
+datasets/
