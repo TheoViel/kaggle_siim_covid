@@ -39,7 +39,7 @@ class CovidClsDataset(Dataset):
         self.original_shapes = self.df["shape"].values
         self.crop_starts = self.df['crop_starts'].values
         self.boxes = []
-        for boxes, orig_shape, starts in self.df[['boxes', 'shape', 'crop_starts']].values:
+        for boxes, orig_shape, starts in self.df[['boxes', 'shape_crop', 'crop_starts']].values:
             boxes = np.array(boxes).astype(float)
 
             if len(boxes):
@@ -116,12 +116,12 @@ class CovidDetDataset(Dataset):
         self.original_shapes = self.df["shape"].values
         self.crop_starts = self.df['crop_starts'].values
         self.boxes = []
-        for boxes, orig_shape, starts in self.df[['boxes', 'shape', 'crop_starts']].values:
+        for boxes, orig_shape, starts in self.df[['boxes', 'shape_crop', 'crop_starts']].values:
             boxes = np.array(boxes).astype(float)
 
             if len(boxes):
-                boxes[:, 0] -= starts[0]
-                boxes[:, 1] -= starts[1]
+                boxes[:, 0] -= starts[1]
+                boxes[:, 1] -= starts[0]
 
             boxes = Boxes(boxes, orig_shape, bbox_format="coco")
             boxes.resize((SIZE, SIZE))

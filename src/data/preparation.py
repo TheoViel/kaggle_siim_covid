@@ -27,6 +27,7 @@ def prepare_dataframe():
     df_image['img_target'] = (df_image['label'] == "opacity").astype(int)
 
     df['shape'] = df['shape'].apply(lambda x: np.array(x[1:-1].split(', ')).astype(int))
+    df['shape_crop'] = df['shape_crop'].apply(lambda x: np.array(x[1:-1].split(', ')).astype(int))
     df['crop_starts'] = df['crop_starts'].apply(lambda x: np.array(x[1:-1].split(', ')).astype(int))
 
     df_image = df_image.merge(df_study, on="study_id", how="left")
