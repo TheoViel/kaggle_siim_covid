@@ -53,7 +53,7 @@ def fit(
     )
 
     meter = DetectionMeter(
-        val_dataset.stacks, pred_format=config.pred_format, truth_format=config.bbox_format
+        pred_format=config.pred_format, truth_format=config.bbox_format
     )
 
     num_warmup_steps = int(config.warmup_prop * config.epochs * len(train_loader))

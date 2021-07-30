@@ -1,7 +1,7 @@
 import albumentations as albu
 from albumentations import pytorch as AT
 
-from params import MEAN, STD, SIZE
+from params import IMG_SIZE
 
 
 def blur_transforms(p=0.5):
@@ -42,25 +42,25 @@ def color_transforms(p=0.5):
     )
 
 
-def OCT_preprocess(
-    augment=True, visualize=False, mean=MEAN, std=STD, size=SIZE, bbox_format="yolo"
+def get_transfos_lung(
+    augment=True, mean=None, std=None, bbox_format="yolo"
 ):
     """
-    Returns transformations for the OCT images.
-    This version ensures masks keep a meaningful shape.
+    Returns transformations for detection.
 
     Args:
         augment (bool, optional): Whether to apply augmentations. Defaults to True.
-        visualize (bool, optional): Whether to use transforms for visualization. Defaults to False.
-        mean (np array [3], optional): Mean for normalization. Defaults to MEAN.
-        std (np array [3], optional): Standard deviation for normalization. Defaults to STD.
-        std (int, optional): Image will be resized to (size, size * 3). Defaults to SIZE.
+        mean (np array [3], optional): Mean for normalization. Defaults to None.
+        std (np array [3], optional): Standard deviation for normalization. Defaults to None.
         bbox_format (str, optional): Bounding box format. Defaults to "yolo".
 
     Returns:
         albumentation transforms: transforms.
     """
-    if visualize:
+    bbox_params = albu.BboxParams(
+        format=bbox_format, label_fields=["class_labels"], min_visibility=0.1
+    )
+    if mean is None or std is None:
         normalizer = albu.Compose(
             [
                 AT.transforms.ToTensorV2(),
@@ -70,7 +70,7 @@ def OCT_preprocess(
     else:
         normalizer = albu.Compose(
             [
-                albu.Normalize(mean=0, std=1),
+                albu.Normalize(mean=mean, std=std),
                 AT.transforms.ToTensorV2(),
             ],
             p=1,
@@ -79,25 +79,22 @@ def OCT_preprocess(
     if augment:
         return albu.Compose(
             [
-                # albu.ShiftScaleRotate(
-                #     scale_limit=0.1, shift_limit=0.1, rotate_limit=45, p=0.5
-                # ),
-                albu.Resize(size[0], size[1]),
+                albu.Resize(IMG_SIZE, IMG_SIZE),
+                albu.ShiftScaleRotate(
+                    scale_limit=0.1, shift_limit=0, rotate_limit=20, p=0.5
+                ),
                 albu.HorizontalFlip(p=0.5),
-                albu.VerticalFlip(p=0.5),
                 color_transforms(p=0.5),
                 blur_transforms(p=0.5),
                 normalizer,
             ],
-            bbox_params=albu.BboxParams(
-                format=bbox_format, label_fields=["class_labels"], min_visibility=0.5
-            ),
+            bbox_params=bbox_params
         )
     else:
         return albu.Compose(
             [
-                albu.Resize(size[0], size[1]),
+                albu.Resize(IMG_SIZE, IMG_SIZE),
                 normalizer,
             ],
-            bbox_params=albu.BboxParams(format=bbox_format, label_fields=["class_labels"]),
+            bbox_params=bbox_params
         )

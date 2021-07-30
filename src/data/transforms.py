@@ -4,7 +4,7 @@ cv2.ocl.setUseOpenCL(False)
 
 import albumentations as albu  # noqa
 from albumentations import pytorch as AT  # noqa
-from params import MEAN, STD  # noqa
+from params import MEAN, STD, SIZE  # noqa
 
 
 def blur_transforms(p=0.5, blur_limit=5):
@@ -183,6 +183,10 @@ def get_transfos_det(
     Returns:
         albumentation transforms: transforms.
     """
+    bbox_params = albu.BboxParams(
+        format=bbox_format, label_fields=["class_labels"], min_visibility=0.1
+    )
+
     if mean is None or std is None:
         normalizer = albu.Compose(
             [
@@ -203,24 +207,21 @@ def get_transfos_det(
         return albu.Compose(
             [
                 albu.ShiftScaleRotate(
-                    scale_limit=0.1, shift_limit=0, rotate_limit=20, p=0.5
+                    scale_limit=0.1, shift_limit=0, rotate_limit=20, p=0.5,
                 ),
                 albu.HorizontalFlip(p=0.5),
                 color_transforms(p=0.5),
                 blur_transforms(p=0.5),
-                # dropout_transforms(p=0.1),
                 normalizer,
             ],
-            bbox_params=albu.BboxParams(
-                format=bbox_format, label_fields=["class_labels"], min_visibility=0.1
-            ),
+            bbox_params=bbox_params
         )
     else:
         return albu.Compose(
             [
                 normalizer,
             ],
-            bbox_params=albu.BboxParams(format=bbox_format, label_fields=["class_labels"]),
+            bbox_params=bbox_params
         )
 
 

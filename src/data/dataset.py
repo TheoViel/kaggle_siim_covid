@@ -43,8 +43,8 @@ class CovidClsDataset(Dataset):
             boxes = np.array(boxes).astype(float)
 
             if len(boxes):
-                boxes[:, 0] -= starts[0]
-                boxes[:, 1] -= starts[1]
+                boxes[:, 0] -= starts[1]
+                boxes[:, 1] -= starts[0]
 
             boxes = Boxes(boxes, orig_shape, bbox_format="coco")
             boxes.resize((SIZE, SIZE))

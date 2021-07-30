@@ -5,21 +5,6 @@ from scipy.optimize import linear_sum_assignment
 def iou_score(bbox1, bbox2):
     bbox1 = [float(x) for x in bbox1]
     bbox2 = [float(x) for x in bbox2]
-    # (xc_1, yc_1, w1, h1) = bbox1
-    # (xc_2, yc_2, w2, h2) = bbox2
-
-    # (x0_1, y0_1, x1_1, y1_1) = (
-    #     xc_1 - w1 / 2,
-    #     yc_1 - h1 / 2,
-    #     xc_1 + w1 / 2,
-    #     yc_1 + h1 / 2,
-    # )
-    # (x0_2, y0_2, x1_2, y1_2) = (
-    #     xc_2 - w2 / 2,
-    #     yc_2 - h2 / 2,
-    #     xc_2 + w2 / 2,
-    #     yc_2 + h2 / 2,
-    # )
 
     (x0_1, y0_1, x1_1, y1_1) = bbox1
     (x0_2, y0_2, x1_2, y1_2) = bbox2

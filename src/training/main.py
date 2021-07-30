@@ -88,8 +88,8 @@ def train(config, df_train, df_val, fold, log_folder=None):
             device=config.device,
         )
 
-        config.loss_config['w_seg_loss'] = 0  # remove seg loss
-        config.loss_config["w_img"] /= 2  # more focus on multiclass
+        # config.loss_config['w_seg_loss'] = 0  # remove seg loss
+        # config.loss_config["w_img"] /= 2  # more focus on multiclass
 
     if config.save_weights and log_folder is not None:
         save_model_weights(

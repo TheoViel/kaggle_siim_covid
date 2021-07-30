@@ -2,17 +2,20 @@ import sys
 import torch
 import torch.nn as nn
 
-from params import SIZE, IMG_SIZE
+from params import SIZE, IMG_SIZE, MEAN, STD
 
 sys.path.append("../yolov5/")
 from utils.general import non_max_suppression  # noqa
 from utils.loss import ComputeLoss  # noqa
 
-sys.path.append("../efficientdet-pytorch")
-from effdet.factory import create_model  # noqa
-from effdet.bench import _post_process, _batch_detection  # noqa
-from effdet.anchors import Anchors, AnchorLabeler  # noqa
-from effdet.loss import DetectionLoss  # noqa
+try:
+    sys.path.append("../efficientdet-pytorch")
+    from effdet.factory import create_model  # noqa
+    from effdet.bench import _post_process, _batch_detection  # noqa
+    from effdet.anchors import Anchors, AnchorLabeler  # noqa
+    from effdet.loss import DetectionLoss  # noqa
+except ModuleNotFoundError:
+    pass
 
 
 def define_model(config):
@@ -25,6 +28,9 @@ def define_model(config):
         )
         model = YoloWrapper(model.model, config)
 
+        model.mean = 0
+        model.std = 1
+
     elif "efficientdet" in config.selected_model:
         model = create_model(
             config.selected_model,
@@ -35,6 +41,9 @@ def define_model(config):
         )
 
         model = EffDetWrapper(model, config)
+
+        model.mean = MEAN
+        model.std = STD
 
     else:
         raise NotImplementedError

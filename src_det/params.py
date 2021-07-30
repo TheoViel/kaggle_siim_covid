@@ -7,9 +7,8 @@ DATA_PATH = "../data/"
 LOG_PATH = "../logs/"
 OUT_DIR = "../output/"
 
-SIZE = (256, 512)  # (320, 640)
-ORIG_SIZE = (500, 1232)
-IMG_SIZE = np.mean(SIZE)
+SIZE = (512, 512)  # (320, 640)
+IMG_SIZE = 512
 
 IMG_PATH = DATA_PATH + 'processed/'
 

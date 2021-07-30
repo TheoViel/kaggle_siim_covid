@@ -1,43 +1,36 @@
+import json
 import numpy as np
 
+from ensemble_boxes import weighted_boxes_fusion
 
-def volumes_to_yolo(volumes, h, w):
+
+def treat_boxes(boxes_string):
     """
-    Extracted volumes -> xc, yc, w, h.
+    Treats the string of box dict in the coco format.
 
     Args:
-        volumes (list of strings): Volumes output by the data extraction notebook.
-        h (int): Image height.
-        w (int): Image width.
+        boxes_string (str): String to treat.
 
     Returns:
-        np array: Boxes in the yolo format.
+        list of lists: Treated boxes string.
     """
-    if not len(volumes):
-        return np.array([])
+    try:
+        boxes_string = boxes_string.replace("'", "\"")
+    except AttributeError:
+        return []
+
+    boxes_dic = json.loads(boxes_string)
 
     boxes = []
-    for vol in volumes.split(' | '):
-        vol = np.array(vol.split(', ')).astype(int)
-        vol[0] = max(0, vol[0])
-        vol[1] = min(h - 1, vol[1])
-        vol[2] = max(0, vol[2])
-        vol[3] = min(w - 1, vol[3])
-
-        box = [
-            float(vol[2] + vol[3]) / 2 / w,  # x center
-            float(vol[0] + vol[1]) / 2 / h,  # y center
-            float(vol[3] - vol[2]) / w,  # width
-            float(vol[1] - vol[0]) / h,  # height
-        ]
-        boxes.append(box)
-    return np.clip(np.array(boxes), 0, 1)
+    for b in boxes_dic:
+        boxes.append([b['x'], b['y'], b['width'], b['height']])
+    return boxes
 
 
 def pascal_to_yolo(boxes, h=None, w=None):
     """
-    x0, y0, x1, y1 -> xc, yc, w, h
-    Normalized in [0, 1].
+    x0, y0, x1, y1 -> Normalized xc, yc, w, h
+
     Args:
         boxes (np array): Boxes in the pascal format.
         h (int, optional): Image height. Defaults to None.
@@ -64,7 +57,7 @@ def pascal_to_yolo(boxes, h=None, w=None):
 
 def pascal_to_albu(boxes, h, w):
     """
-    x0, y0, x1, y1 -> x0, y0, x1, y1 normalized in [0, 1].
+    x0, y0, x1, y1 -> Normalized x0, y0, x1, y1.
     Args:
         boxes (np array): Boxes in the pascal format.
         h (int): Image height.
@@ -89,7 +82,7 @@ def pascal_to_albu(boxes, h, w):
 
 def albu_to_pascal(boxes, h, w):
     """
-    x0, y0, x1, y1 normalized in [0, 1] -> x0, y0, x1, y1.
+    Normalized x0, y0, x1, y1 -> x0, y0, x1, y1.
     Args:
         boxes (np array): Boxes in the albu format.
         h (int): Image height.
@@ -147,8 +140,7 @@ def coco_to_pascal(boxes):
 
 def yolo_to_pascal(boxes, h=None, w=None):
     """
-    xc, yc, w, h -> x0, y0, x1, y1
-    Normalized in [0, 1]
+    Normalized xc, yc, w, h -> x0, y0, x1, y1
 
     Args:
         boxes (np array): Boxes in the yolo format
@@ -173,27 +165,6 @@ def yolo_to_pascal(boxes, h=None, w=None):
         boxes = boxes.astype(int)
 
     return boxes
-
-
-def yolo_to_volumes(boxes, h, w):
-    """
-    xc, yc, w, h -> Format supported by the app.
-
-    Args:
-        boxes (np array): Boxes in the yolo format.
-        h (int): Image height.
-        w (int): Image width.
-
-    Returns:
-        list [n x 3 x 2]: Volumes in the format of the app.
-    """
-    boxes = yolo_to_pascal(boxes, h, w)
-
-    volumes = []
-    for box in boxes:
-        volumes.append([[int(box[1]), int(box[3])], [None, None], [int(box[0]), int(box[2])]])
-
-    return volumes
 
 
 def expand_boxes(boxes, r=1):
@@ -232,6 +203,36 @@ def expand_boxes(boxes, r=1):
     return Boxes(boxes, shape, bbox_format="yolo")
 
 
+def box_fusion(boxes, iou_threshold=0.5, return_once=True):
+    boxes_albu = [box["albu"].copy() for box in boxes]
+
+    confidences = [[1] * len(p) for p in boxes_albu]
+    labels = [[0] * len(p) for p in boxes_albu]
+
+    pred_wbf, confidences_wbf, _ = weighted_boxes_fusion(
+        boxes_albu, confidences, labels, iou_thr=iou_threshold
+    )
+
+    if return_once:
+        return Boxes(pred_wbf, boxes[0].shape, bbox_format="albu")
+    else:
+        return [Boxes(pred_wbf, boxes[0].shape, bbox_format="albu") for _ in range(len(boxes))]
+
+
+def merge_boxes(boxes, transpositions):
+    for box, tran in zip(boxes, transpositions):
+        if tran:
+            box.hflip()
+
+    fused_boxes = box_fusion(boxes, return_once=False)
+
+    for box, tran in zip(fused_boxes, transpositions):
+        if tran:
+            box.hflip()
+
+    return fused_boxes
+
+
 class Boxes:
     """
     Class to handle different format of bounding boxes easily.
@@ -242,12 +243,7 @@ class Boxes:
         self.h = h
         self.w = w
 
-        if bbox_format == "volume":
-            self.boxes_yolo = volumes_to_yolo(data, h, w)
-            self.boxes_pascal = yolo_to_pascal(self.boxes_yolo.copy(), h, w)
-            self.boxes_albu = pascal_to_albu(self.boxes_pascal.copy(), h, w)
-            self.boxes_coco = pascal_to_coco(self.boxes_pascal.copy())
-        elif bbox_format == "yolo":
+        if bbox_format == "yolo":
             self.boxes_yolo = data
             self.boxes_pascal = yolo_to_pascal(self.boxes_yolo.copy(), h, w)
             self.boxes_albu = pascal_to_albu(self.boxes_pascal.copy(), h, w)
@@ -271,6 +267,7 @@ class Boxes:
             raise NotImplementedError
 
     def __getitem__(self, bbox_format):
+
         if bbox_format == "yolo":
             return self.boxes_yolo
         elif bbox_format == "pascal_voc":
@@ -280,7 +277,27 @@ class Boxes:
         elif bbox_format == "coco":
             return self.boxes_coco
         else:
+            print(bbox_format)
             raise NotImplementedError
 
     def __len__(self):
         return len(self.boxes_yolo)
+
+    def resize(self, shape):
+        self.shape = shape
+        self.h, self.w = shape[0], shape[1]
+        self.boxes_pascal = yolo_to_pascal(self.boxes_yolo.copy(), self.h, self.w)
+        self.boxes_coco = pascal_to_coco(self.boxes_pascal.copy())
+
+    def fill(self, img, value=1):
+        for box in self.boxes_pascal:
+            img[box[1]: box[3], box[0]: box[2]] = value
+
+    def hflip(self):
+        if len(self.boxes_yolo):
+            self.boxes_yolo[:, 0] = 1 - self.boxes_yolo[:, 0]
+            # self.boxes_yolo[:, 1] = 1 - self.boxes_yolo[:, 1]
+
+            self.boxes_pascal = yolo_to_pascal(self.boxes_yolo.copy(), self.h, self.w)
+            self.boxes_albu = pascal_to_albu(self.boxes_pascal.copy(), self.h, self.w)
+            self.boxes_coco = pascal_to_coco(self.boxes_pascal.copy())
