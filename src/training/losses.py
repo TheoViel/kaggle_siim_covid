@@ -34,6 +34,7 @@ class CovidLoss(nn.Module):
         self.w_seg_loss = config["w_seg_loss"]
         self.w_study = config["w_study"]
         self.w_img = config["w_img"]
+        self.seg_loss_multiplier = config["seg_loss_multiplier"]
 
     def compute_seg_loss(self, preds, truth):
         losses = []
@@ -47,7 +48,7 @@ class CovidLoss(nn.Module):
             loss += (1 - self.w_bce) * self.focal_tversky(pred, truth)
             losses.append(loss)
 
-        return 2 * torch.stack(losses, -1).mean(-1)
+        return self.seg_loss_multiplier * torch.stack(losses, -1).mean(-1)
 
     def compute_study_loss(self, pred, truth, mix_lambda=1):
         if isinstance(truth, list):
