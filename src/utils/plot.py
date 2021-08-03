@@ -25,6 +25,12 @@ def plot_sample(img, boxes, bbox_format="yolo", axis=False):
                 (box[0], box[1]), box[2], box[3],
                 linewidth=2, edgecolor='salmon', facecolor='none'
             )
+        elif bbox_format == "albu":
+            w, h = img.shape[:2]
+            rect = Rectangle(
+                (box[0] * h, box[1] * w), (box[2] - box[0]) * h, (box[3] - box[1]) * w,
+                linewidth=2, edgecolor='salmon', facecolor='none'
+            )
         else:
             raise NotImplementedError()
 

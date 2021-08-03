@@ -16,8 +16,8 @@ def blur_transforms(p=0.5):
     """
     return albu.OneOf(
         [
-            albu.MotionBlur(blur_limit=5, always_apply=True),
-            albu.GaussianBlur(blur_limit=(1, 5), always_apply=True),
+            albu.MotionBlur(blur_limit=10, always_apply=True),
+            albu.GaussianBlur(blur_limit=(1, 11), always_apply=True),
         ],
         p=p,
     )
@@ -35,8 +35,8 @@ def color_transforms(p=0.5):
     """
     return albu.OneOf(
         [
-            albu.RandomGamma(gamma_limit=(70, 130), always_apply=True),
-            albu.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1),
+            albu.RandomGamma(gamma_limit=(60, 150), always_apply=True),
+            albu.RandomBrightnessContrast(brightness_limit=0.3, contrast_limit=0.3),
         ],
         p=p,
     )
@@ -81,11 +81,11 @@ def get_transfos_lung(
             [
                 albu.Resize(IMG_SIZE, IMG_SIZE),
                 albu.ShiftScaleRotate(
-                    scale_limit=0.1, shift_limit=0, rotate_limit=20, p=0.5
+                    scale_limit=(-0.2, 0.1), shift_limit=0.1, rotate_limit=20, p=1,
                 ),
                 albu.HorizontalFlip(p=0.5),
-                color_transforms(p=0.5),
-                blur_transforms(p=0.5),
+                color_transforms(p=0.75),
+                blur_transforms(p=0.75),
                 normalizer,
             ],
             bbox_params=bbox_params

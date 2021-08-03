@@ -61,3 +61,42 @@ class LungDataset(Dataset):
             boxes = np.array(transformed["bboxes"])
 
         return image, boxes, (h, w)
+
+
+class InferenceDataset(Dataset):
+    """
+    Follicle dataset for inference.
+    """
+
+    def __init__(self, images, transforms=None):
+        """
+        Constructor
+
+        Args:
+            images (list of np arrays): Images.
+            transforms (albumentations transforms): Transforms.
+        """
+        self.images = images
+        self.transforms = transforms
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+        """
+        Item accessor
+
+        Args:
+            idx (int): Index.
+
+        Returns:
+            torch tensor [C x H x W]: Image.
+            0: placeholder.
+        """
+        image = cv2.imread(self.images[idx])
+        shape = image.shape
+
+        if self.transforms:
+            image = self.transforms(image=image, bboxes=[], class_labels=[])["image"]
+
+        return image, [], shape

@@ -106,12 +106,11 @@ def fit(
             )
             if epoch + 1 >= config.first_epoch_eval:
                 print(f"f1={metrics['f1_score']:.3f} \t recall={metrics['recall']:.3f} \t")
+                if config.verbose_plot:
+                    if (epoch + 1) % config.verbose_plot == 0:
+                        meter.plot(n_samples=3)
             else:
                 print("")
-
-            if config.verbose_plot:
-                if (epoch + 1) % config.verbose_plot == 0:
-                    meter.plot(n_samples=3)
 
     del val_loader, train_loader, y_pred, loss, x, y_batch
     torch.cuda.empty_cache()

@@ -40,6 +40,14 @@ class DetectionMeter:
             pred = pred.cpu().numpy()
             pred, confidences = pred[:, :4], pred[:, 4]
 
+            if len(confidences) > 2:
+                min_conf = np.partition(confidences, -2)[-2]
+                pred = pred[confidences >= min_conf]
+                confidences = confidences[confidences >= min_conf]
+
+            # print(confidences, pred)
+            # break
+
             self.preds.append(Boxes(pred, (h, w), bbox_format=self.pred_format))
             self.confidences.append(confidences)
 
@@ -50,7 +58,6 @@ class DetectionMeter:
         Returns:
             dict: Metrics dictionary.
         """
-        self.fusion(iou_threshold=iou_threshold)
         return compute_metrics(self.preds, self.truths)
 
     def reset(self):
@@ -71,19 +78,22 @@ class DetectionMeter:
             "f1_score": 0,
         }
 
-    def plot(self, n_samples=1):
+    def plot(self, n_samples=1, indices=None):
         """
         Visualize results.
 
         Args:
             n_samples (int, optional): Number of samples to plot. Defaults to 1.
         """
-        if n_samples > 0:
-            indices = np.random.choice(len(self.images), n_samples, replace=False)
-        elif n_samples == -1:
-            indices = range(len(self.images))
+        if indices is None:
+            if n_samples > 0:
+                indices = np.random.choice(len(self.images), n_samples, replace=False)
+            elif n_samples == -1:
+                indices = range(len(self.images))
 
         for idx in indices:
+            # if len(self.preds[idx]) != 2:
+            #     print(idx)
             plot_predictions(
                 self.images[idx], self.truths[idx], self.preds[idx]
             )
