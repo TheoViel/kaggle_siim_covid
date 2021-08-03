@@ -23,11 +23,30 @@ class FocalTverskyLoss(nn.Module):
         return (1 - tversky) ** gamma
 
 
+class SmoothCrossEntropyLoss(nn.Module):
+    def __init__(self, eps=0):
+        super(SmoothCrossEntropyLoss, self).__init__()
+        self.eps = eps
+
+    def forward(self, inputs, targets):
+        if len(targets.size()) == 1:  # to one hot
+            targets = torch.zeros_like(inputs).scatter(1, targets.view(-1, 1).long(), 1)
+
+        if self.eps > 0:
+            n_class = inputs.size(1)
+            targets = targets * (1 - self.eps) + (1 - targets) * self.eps / (n_class - 1)
+
+        loss = -targets * F.log_softmax(inputs, dim=1)
+        loss = loss.sum(-1)
+
+        return loss
+
+
 class CovidLoss(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.bce = nn.BCEWithLogitsLoss(reduction="none")
-        self.ce = nn.CrossEntropyLoss(reduction="none")
+        self.ce = SmoothCrossEntropyLoss()
         self.focal_tversky = FocalTverskyLoss()
 
         self.w_bce = config["w_bce"]
@@ -36,7 +55,7 @@ class CovidLoss(nn.Module):
         self.w_img = config["w_img"]
         self.seg_loss_multiplier = config["seg_loss_multiplier"]
 
-    def compute_seg_loss(self, preds, truth):
+    def compute_seg_loss(self, preds, truth, is_pl):
         losses = []
         truth = truth.unsqueeze(1)
 
@@ -48,7 +67,10 @@ class CovidLoss(nn.Module):
             loss += (1 - self.w_bce) * self.focal_tversky(pred, truth)
             losses.append(loss)
 
-        return self.seg_loss_multiplier * torch.stack(losses, -1).mean(-1)
+        loss = self.seg_loss_multiplier * torch.stack(losses, -1).mean(-1)
+        loss = loss * (1 - is_pl) / (1 - is_pl.mean() + 1e-6)
+
+        return loss
 
     def compute_study_loss(self, pred, truth, mix_lambda=1):
         if isinstance(truth, list):
@@ -59,8 +81,10 @@ class CovidLoss(nn.Module):
         else:
             return self.w_study * self.ce(pred, truth.long())
 
-    def __call__(self, pred_study, pred_img, preds_mask, y_study, y_img, y_mask, mix_lambda=1):
-        seg_loss = self.compute_seg_loss(preds_mask, y_mask)
+    def __call__(
+        self, pred_study, pred_img, preds_mask, y_study, y_img, y_mask, is_pl, mix_lambda=1
+    ):
+        seg_loss = self.compute_seg_loss(preds_mask, y_mask, is_pl=is_pl)
 
         study_loss = self.compute_study_loss(pred_study, y_study, mix_lambda=mix_lambda)
         img_loss = self.w_img * self.bce(pred_img.view(y_img.size()), y_img)

@@ -31,7 +31,7 @@ def rand_bbox(size, lam):
     return bbx1, bby1, bbx2, bby2, lam
 
 
-def cutmix_data(x, y_study, y_img, mask, alpha=1.0, device="cuda"):
+def cutmix_data(x, y_study, y_img, mask, is_pl, alpha=1.0, device="cuda"):
     """
     Applies cutmix to a sample
     Args:
@@ -58,4 +58,8 @@ def cutmix_data(x, y_study, y_img, mask, alpha=1.0, device="cuda"):
 
     mixed_y_img = (mixed_mask.sum(-1).sum(-1) > 100).float()
 
-    return mixed_x, [y_study, y_study[index]], mixed_y_img, mixed_mask, lam
+    # mixed_is_pl = torch.clamp(is_pl + is_pl[index], 0, 1)
+    # mixed_is_pl = is_pl * lam + is_pl[index] * (1 - lam)
+    mixed_is_pl = is_pl * (lam > 0.5) + is_pl[index] * (lam < 0.5)
+
+    return mixed_x, [y_study, y_study[index]], mixed_y_img, mixed_mask, mixed_is_pl, lam

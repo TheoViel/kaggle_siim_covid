@@ -25,13 +25,15 @@ class CovidClsDataset(Dataset):
         """
         self.df = df
         self.train = train
-        self.root_dir = root_dir
         self.transforms = transforms
 
         self.img_names = df["save_name"].values
         self.study_targets = df[CLASSES].values.argmax(-1)
         self.img_targets = df["img_target"].values
         self.studies = df["study_id"].values
+
+        self.is_pl = df['is_pl'].values
+        self.root_dirs = df['root'].values
 
         self.get_boxes()
 
@@ -41,6 +43,10 @@ class CovidClsDataset(Dataset):
         self.boxes = []
         for boxes, orig_shape, starts in self.df[['boxes', 'shape_crop', 'crop_starts']].values:
             boxes = np.array(boxes).astype(float)
+            try:
+                _ = len(boxes)
+            except TypeError:  # nan
+                boxes = np.array([])
 
             if len(boxes):
                 boxes[:, 0] -= starts[1]
@@ -64,7 +70,7 @@ class CovidClsDataset(Dataset):
             torch tensor [C x H x W]: Image.
             torch tensor [NUM_CLASSES]: Label.
         """
-        image = cv2.imread(self.root_dir + self.img_names[idx])
+        image = cv2.imread(self.root_dirs[idx] + self.img_names[idx])
 
         mask = np.zeros(image.shape[:-1])
         self.boxes[idx].fill(mask)
@@ -78,8 +84,9 @@ class CovidClsDataset(Dataset):
 
         y_study = torch.tensor(self.study_targets[idx], dtype=torch.float)
         y_img = torch.tensor(self.img_targets[idx], dtype=torch.float)
+        is_pl = torch.tensor(self.is_pl[idx], dtype=torch.float)
 
-        return image, mask, y_study, y_img
+        return image, mask, y_study, y_img, is_pl
 
 
 class CovidDetDataset(Dataset):
