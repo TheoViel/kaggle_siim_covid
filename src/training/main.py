@@ -35,6 +35,7 @@ def train(config, df_train, df_val, fold, log_folder=None):
         config.selected_model,
         use_unet=config.use_unet,
         num_classes=config.num_classes,
+        pretrained=config.pretrained,
     ).to(config.device)
     model.zero_grad()
 

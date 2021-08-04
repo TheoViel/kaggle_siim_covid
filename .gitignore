@@ -16,3 +16,4 @@ input/test/
 *.jpeg
 dataset/
 datasets/
+*.bin

@@ -5,7 +5,7 @@ from model_zoo.encoders import get_encoder
 from model_zoo.unet import UnetDecoder
 
 
-def get_model(name, num_classes=1, use_unet=False):
+def get_model(name, num_classes=1, use_unet=False, pretrained=False):
     """
     Loads a pretrained model.
     Supports ResNest, ResNext-wsl, EfficientNet, ResNext and encoder.
@@ -19,14 +19,14 @@ def get_model(name, num_classes=1, use_unet=False):
     """
     encoder = get_encoder(name)
     if use_unet:
-        model = CovidUnetModel(encoder, num_classes=num_classes)
+        model = CovidUnetModel(encoder, num_classes=num_classes, pretrained=pretrained)
     else:
-        model = CovidModel(encoder, num_classes=num_classes)
+        model = CovidModel(encoder, num_classes=num_classes, pretrained=pretrained)
     return model
 
 
 class CovidModel(nn.Module):
-    def __init__(self, encoder, num_classes=1):
+    def __init__(self, encoder, num_classes=1, pretrained=False):
         """
         Constructor.
 
@@ -48,6 +48,11 @@ class CovidModel(nn.Module):
 
         self.logits_img = nn.Linear(self.nb_ft, 1)
         self.logits_study = nn.Linear(self.nb_ft, num_classes)
+
+        if pretrained:
+            del self.encoder.classifier
+            state_dict = torch.load("../output/pretrained_tf_efficientnetv2_m_in21ft1k")
+            self.encoder.load_state_dict(state_dict, strict=True)
 
     @staticmethod
     def get_mask_head(nb_ft):
@@ -103,7 +108,7 @@ class CovidModel(nn.Module):
 
 
 class CovidUnetModel(nn.Module):
-    def __init__(self, encoder, num_classes=1):
+    def __init__(self, encoder, num_classes=1, pretrained=False):
         """
         Constructor.
 
@@ -122,6 +127,11 @@ class CovidUnetModel(nn.Module):
 
         self.decoder = UnetDecoder(self.encoder.nb_fts)
         self.conv = nn.Conv2d(16, 1, kernel_size=3, padding=1)
+
+        if pretrained:
+            del self.encoder.classifier
+            state_dict = torch.load("../output/pretrained_tf_efficientnetv2_m_in21ft1k.bin")
+            self.encoder.load_state_dict(state_dict, strict=True)
 
     def forward(self, x):
         x1, x2, x3, x4 = self.encoder.extract_features(x)
