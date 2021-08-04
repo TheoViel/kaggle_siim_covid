@@ -293,6 +293,37 @@ class Boxes:
         for box in self.boxes_pascal:
             img[box[1]: box[3], box[0]: box[2]] = value
 
+    def crop(self, img, idx=0):
+        box = self.boxes_pascal[idx]
+        return img[box[1]: box[3], box[0]: box[2]]
+
+    def expand(self, r):
+        boxes = self["yolo"]
+        boxes[:, 2] = np.clip(boxes[:, 2] * r, 0, 0.75)
+        boxes[:, 3] = np.clip(boxes[:, 3] * r, 0, 0.75)
+
+        for b in boxes:  # shift boxes out of bounds
+            if b[0] - b[2] / 2 < 0:
+                b[2] += b[0] - b[2] / 2
+                b[0] = b[2] / 2
+
+            if b[0] + b[2] / 2 > 1:
+                b[2] -= b[0] + b[2] / 2 - 1
+                b[0] = 1 - (b[2] / 2)
+
+            if b[1] - b[3] / 2 < 0:
+                b[3] += b[1] - b[3] / 2
+                b[1] = b[3] / 2
+
+            if b[1] + b[3] / 2 > 1:
+                b[3] -= b[1] + b[3] / 2 - 1
+                b[1] = 1 - (b[3] / 2)
+
+        self.boxes_yolo = boxes
+        self.boxes_pascal = yolo_to_pascal(self.boxes_yolo.copy(), self.h, self.w)
+        self.boxes_albu = pascal_to_albu(self.boxes_pascal.copy(), self.h, self.w)
+        self.boxes_coco = pascal_to_coco(self.boxes_pascal.copy())
+
     def hflip(self):
         if len(self.boxes_yolo):
             self.boxes_yolo[:, 0] = 1 - self.boxes_yolo[:, 0]

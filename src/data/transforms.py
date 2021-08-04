@@ -149,6 +149,7 @@ def get_transfos_cls(augment=True, mean=None, std=None):
     if augment:
         return albu.Compose(
             [
+                albu.Resize(SIZE, SIZE),
                 albu.ShiftScaleRotate(
                     scale_limit=0.2, shift_limit=0, rotate_limit=15, p=0.5
                 ),
@@ -163,6 +164,7 @@ def get_transfos_cls(augment=True, mean=None, std=None):
     else:
         return albu.Compose(
             [
+                albu.Resize(SIZE, SIZE),
                 normalizer,
             ],
         )
@@ -206,6 +208,7 @@ def get_transfos_det(
     if augment:
         return albu.Compose(
             [
+                albu.Resize(SIZE, SIZE),
                 albu.ShiftScaleRotate(
                     scale_limit=0.1, shift_limit=0, rotate_limit=20, p=0.5,
                 ),
@@ -219,6 +222,7 @@ def get_transfos_det(
     else:
         return albu.Compose(
             [
+                albu.Resize(SIZE, SIZE),
                 normalizer,
             ],
             bbox_params=bbox_params

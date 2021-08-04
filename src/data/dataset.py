@@ -5,6 +5,7 @@ from torch.utils.data import Dataset
 
 from params import CLASSES, SIZE
 from utils.boxes import Boxes
+from data.extraction import auto_windowing
 
 
 class CovidClsDataset(Dataset):
@@ -34,6 +35,7 @@ class CovidClsDataset(Dataset):
         self.studies = df["study_id"].values
 
         self.get_boxes()
+        self.get_boxes_lungs()
 
     def get_boxes(self):
         self.original_shapes = self.df["shape"].values
@@ -49,6 +51,19 @@ class CovidClsDataset(Dataset):
             boxes = Boxes(boxes, orig_shape, bbox_format="coco")
             boxes.resize((SIZE, SIZE))
             self.boxes.append(boxes)
+
+    def get_boxes_lungs(self):
+        self.boxes_lungs = []
+        for boxes in self.df['boxes_lung']:
+            x_start = boxes[:, 0].min()
+            y_start = boxes[:, 1].min()
+            x_end = boxes[:, 2].max()
+            y_end = boxes[:, 3].max()
+
+            boxes = Boxes(
+                np.array([[x_start, y_start, x_end, y_end]]), (512, 512), bbox_format="albu"
+            )
+            self.boxes_lungs.append(boxes)
 
     def __len__(self):
         return self.df.shape[0]
@@ -68,6 +83,13 @@ class CovidClsDataset(Dataset):
 
         mask = np.zeros(image.shape[:-1])
         self.boxes[idx].fill(mask)
+
+        lungs = self.boxes_lungs[idx]
+        lungs.expand(1.2)
+        image = lungs.crop(image)
+        mask = lungs.crop(mask)
+
+        image, _ = auto_windowing(image)
 
         if self.transforms:
             transformed = self.transforms(
@@ -111,6 +133,7 @@ class CovidDetDataset(Dataset):
         self.studies = df["study_id"].values
 
         self.get_boxes()
+        self.get_boxes_lungs()
 
     def get_boxes(self):
         self.original_shapes = self.df["shape"].values
@@ -127,6 +150,19 @@ class CovidDetDataset(Dataset):
             boxes.resize((SIZE, SIZE))
             self.boxes.append(boxes)
 
+    def get_boxes_lungs(self):
+        self.boxes_lungs = []
+        for boxes in self.df['boxes_lung']:
+            x_start = boxes[:, 0].min()
+            y_start = boxes[:, 1].min()
+            x_end = boxes[:, 2].max()
+            y_end = boxes[:, 3].max()
+
+            boxes = Boxes(
+                np.array([[x_start, y_start, x_end, y_end]]), (512, 512), bbox_format="albu"
+            )
+            self.boxes_lungs.append(boxes)
+
     def __len__(self):
         return self.df.shape[0]
 
@@ -142,7 +178,7 @@ class CovidDetDataset(Dataset):
             torch tensor [NUM_CLASSES]: Label.
         """
         image = cv2.imread(self.root_dir + self.img_names[idx])
-        boxes = self.boxes[idx]
+        boxes = self.boxes_lungs[idx]
 
         mask = np.zeros(image.shape[:-1])
         boxes.fill(mask)
