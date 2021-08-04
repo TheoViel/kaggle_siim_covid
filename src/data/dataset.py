@@ -41,7 +41,9 @@ class CovidClsDataset(Dataset):
         self.original_shapes = self.df["shape"].values
         self.crop_starts = self.df['crop_starts'].values
         self.boxes = []
-        for boxes, orig_shape, starts in self.df[['boxes', 'shape_crop', 'crop_starts']].values:
+        for boxes, orig_shape, starts in self.df[
+            ['boxes', 'shape_crop', 'crop_starts']
+        ].values:
             boxes = np.array(boxes).astype(float)
 
             if len(boxes):
@@ -51,6 +53,26 @@ class CovidClsDataset(Dataset):
             boxes = Boxes(boxes, orig_shape, bbox_format="coco")
             boxes.resize((SIZE, SIZE))
             self.boxes.append(boxes)
+
+    # def get_boxes_lungs(self):
+    #     self.original_shapes = self.df["shape"].values
+    #     self.crop_starts = self.df['crop_starts'].values
+    #     self.boxes_lungs = []
+    #     for boxes, orig_shape, starts in self.df[
+    #         ['boxes_lung', 'shape_crop', 'crop_starts']
+    #     ].values:
+    #         boxes = np.array([boxes]).astype(float)
+
+    #         if len(boxes):
+    #             boxes[:, 0] -= starts[1]
+    #             boxes[:, 1] -= starts[0]
+    #             boxes[:, 2] -= starts[1]
+    #             boxes[:, 3] -= starts[0]
+
+    #         boxes = Boxes(boxes, orig_shape, bbox_format="pascal_voc")
+    #         boxes.resize((SIZE, SIZE))
+    #         boxes.expand(1.1)
+    #         self.boxes_lungs.append(boxes)
 
     def get_boxes_lungs(self):
         self.boxes_lungs = []
@@ -85,7 +107,9 @@ class CovidClsDataset(Dataset):
         self.boxes[idx].fill(mask)
 
         lungs = self.boxes_lungs[idx]
-        lungs.expand(1.2)
+        lungs.expand(1.1)
+        lungs.clip()
+
         image = lungs.crop(image)
         mask = lungs.crop(mask)
 
@@ -150,6 +174,25 @@ class CovidDetDataset(Dataset):
             boxes.resize((SIZE, SIZE))
             self.boxes.append(boxes)
 
+    # def get_boxes_lungs(self):
+    #     self.original_shapes = self.df["shape"].values
+    #     self.crop_starts = self.df['crop_starts'].values
+    #     self.boxes_lungs = []
+    #     for boxes, orig_shape, starts in self.df[
+    #         ['boxes_lung', 'shape_crop', 'crop_starts']
+    #     ].values:
+    #         boxes = np.array(boxes).astype(float)
+
+    #         if len(boxes):
+    #             boxes[:, 0] -= starts[1]
+    #             boxes[:, 1] -= starts[0]
+    #             boxes[:, 2] -= starts[1]
+    #             boxes[:, 3] -= starts[0]
+
+    #         boxes = Boxes(boxes, orig_shape, bbox_format="pascal_voc")
+    #         boxes.resize((SIZE, SIZE))
+    #         self.boxes_lungs.append(boxes)
+
     def get_boxes_lungs(self):
         self.boxes_lungs = []
         for boxes in self.df['boxes_lung']:
@@ -179,8 +222,15 @@ class CovidDetDataset(Dataset):
         """
         image = cv2.imread(self.root_dir + self.img_names[idx])
         boxes = self.boxes_lungs[idx]
+        b = self.boxes_lungs[idx]['pascal_voc'].tolist()
+        boxes.expand(1.1)
+        boxes.clip()
+        b += self.boxes_lungs[idx]['pascal_voc'].tolist()
+
+        boxes = Boxes(np.array(b), boxes.shape, bbox_format="pascal_voc")
 
         mask = np.zeros(image.shape[:-1])
+
         boxes.fill(mask)
         boxes = boxes[self.bbox_format]
 

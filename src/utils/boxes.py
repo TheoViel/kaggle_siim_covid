@@ -180,8 +180,8 @@ def expand_boxes(boxes, r=1):
     """
     shape = boxes.shape
     boxes = boxes["yolo"]
-    boxes[:, 2] = np.clip(boxes[:, 2] * r, 0, 0.75)
-    boxes[:, 3] = np.clip(boxes[:, 3] * r, 0, 0.75)
+    boxes[:, 2] = np.clip(boxes[:, 2] * r, 0, 1)
+    boxes[:, 3] = np.clip(boxes[:, 3] * r, 0, 1)
 
     for b in boxes:  # shift boxes out of bounds
         if b[0] - b[2] / 2 < 0:
@@ -299,23 +299,23 @@ class Boxes:
 
     def expand(self, r):
         boxes = self["yolo"]
-        boxes[:, 2] = np.clip(boxes[:, 2] * r, 0, 0.75)
-        boxes[:, 3] = np.clip(boxes[:, 3] * r, 0, 0.75)
+        boxes[:, 2] = np.clip(boxes[:, 2] * r, 0, 1)
+        boxes[:, 3] = np.clip(boxes[:, 3] * r, 0, 1)
 
         for b in boxes:  # shift boxes out of bounds
-            if b[0] - b[2] / 2 < 0:
+            if b[0] - b[2] / 2 <= 0:
                 b[2] += b[0] - b[2] / 2
                 b[0] = b[2] / 2
 
-            if b[0] + b[2] / 2 > 1:
+            if b[0] + b[2] / 2 >= 1:
                 b[2] -= b[0] + b[2] / 2 - 1
                 b[0] = 1 - (b[2] / 2)
 
-            if b[1] - b[3] / 2 < 0:
+            if b[1] - b[3] / 2 <= 0:
                 b[3] += b[1] - b[3] / 2
                 b[1] = b[3] / 2
 
-            if b[1] + b[3] / 2 > 1:
+            if b[1] + b[3] / 2 >= 1:
                 b[3] -= b[1] + b[3] / 2 - 1
                 b[1] = 1 - (b[3] / 2)
 
@@ -330,5 +330,16 @@ class Boxes:
             # self.boxes_yolo[:, 1] = 1 - self.boxes_yolo[:, 1]
 
             self.boxes_pascal = yolo_to_pascal(self.boxes_yolo.copy(), self.h, self.w)
+            self.boxes_albu = pascal_to_albu(self.boxes_pascal.copy(), self.h, self.w)
+            self.boxes_coco = pascal_to_coco(self.boxes_pascal.copy())
+
+    def clip(self):
+        if len(self.boxes_pascal):
+            self.boxes_pascal[:, 0] = np.clip(self.boxes_pascal[:, 0], 0, self.w - 1)
+            self.boxes_pascal[:, 1] = np.clip(self.boxes_pascal[:, 1], 0, self.h - 1)
+            self.boxes_pascal[:, 2] = np.clip(self.boxes_pascal[:, 2], 0, self.w - 1)
+            self.boxes_pascal[:, 3] = np.clip(self.boxes_pascal[:, 3], 0, self.h - 1)
+
+            self.boxes_yolo = pascal_to_yolo(self.boxes_pascal.copy(), self.h, self.w)
             self.boxes_albu = pascal_to_albu(self.boxes_pascal.copy(), self.h, self.w)
             self.boxes_coco = pascal_to_coco(self.boxes_pascal.copy())
