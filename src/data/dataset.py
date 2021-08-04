@@ -28,7 +28,8 @@ class CovidClsDataset(Dataset):
         self.transforms = transforms
 
         self.img_names = df["save_name"].values
-        self.study_targets = df[CLASSES].values.argmax(-1)
+        # self.study_targets = df[CLASSES].values.argmax(-1)
+        self.study_targets = df["target_bin"].values
         self.img_targets = df["img_target"].values
         self.studies = df["study_id"].values
 

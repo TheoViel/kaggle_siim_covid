@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.metrics import roc_auc_score
 from transformers import get_linear_schedule_with_warmup
 
-from utils.metrics import study_level_map
+from utils.metrics import study_level_map_binary
 from training.loader import define_loaders
 from training.mix import cutmix_data
 from training.losses import CovidLoss
@@ -159,7 +159,7 @@ def fit(
 
         model.eval()
         study_map, img_auc, avg_val_loss = 0, 0, 0
-        preds_study = np.empty((0, num_classes))
+        preds_study = np.empty((0))
         preds_img = np.empty((0))
 
         if (epoch + 1 >= first_epoch_eval) or (epoch + 1 == epochs):
@@ -187,12 +187,12 @@ def fit(
                     avg_val_loss += loss.mean().item() / len(val_loader)
 
                     # Update predictions
-                    pred_study = torch.softmax(pred_study, -1).detach()
+                    pred_study = torch.sigmoid(pred_study).view(-1).detach()
                     pred_img = torch.sigmoid(pred_img).view(-1).detach()
                     preds_study = np.concatenate([preds_study, pred_study.cpu().numpy()])
                     preds_img = np.concatenate([preds_img, pred_img.cpu().numpy()])
 
-                study_map = study_level_map(
+                study_map = study_level_map_binary(
                     preds_study, val_dataset.study_targets, val_dataset.studies
                 )
                 img_auc = roc_auc_score(val_dataset.img_targets, preds_img)

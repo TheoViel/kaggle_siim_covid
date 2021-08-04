@@ -4,12 +4,11 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 
-from params import CLASSES
 from training.train import fit
 from data.dataset import CovidClsDataset
 from data.transforms import get_transfos_cls
 from model_zoo.models import get_model
-from utils.metrics import study_level_map
+from utils.metrics import study_level_map_binary
 from utils.torch import seed_everything, count_parameters, save_model_weights
 
 
@@ -123,7 +122,7 @@ def k_fold(config, df, df_extra=None, log_folder=None):
         dict : Metrics dictionary.
     """
 
-    pred_oof_study = np.zeros((len(df), config.num_classes))
+    pred_oof_study = np.zeros(len(df))
     pred_oof_img = np.zeros(len(df))
 
     for i in range(config.k):
@@ -159,8 +158,8 @@ def k_fold(config, df, df_extra=None, log_folder=None):
         np.save(log_folder + "pred_oof_study.npy", pred_oof_study)
         np.save(log_folder + "pred_oof_img.npy", pred_oof_img)
 
-    score_study = study_level_map(
-        pred_oof_study, df[CLASSES].values, df["study_id"]
+    score_study = study_level_map_binary(
+        pred_oof_study, df["target_bin"].values, df["study_id"]
     )
 
     score_img = roc_auc_score(df["img_target"].values, pred_oof_img)

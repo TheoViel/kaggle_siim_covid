@@ -75,11 +75,11 @@ class CovidLoss(nn.Module):
     def compute_study_loss(self, pred, truth, mix_lambda=1):
         if isinstance(truth, list):
             return self.w_study * (
-                mix_lambda * self.ce(pred, truth[0].long()) +
-                (1 - mix_lambda) * self.ce(pred, truth[1].long())
+                mix_lambda * self.bce(pred.view(truth[0].size()), truth[0]) +
+                (1 - mix_lambda) * self.bce(pred.view(truth[1].size()), truth[1])
             )
         else:
-            return self.w_study * self.ce(pred, truth.long())
+            return self.w_study * self.bce(pred.view(truth.size()), truth)
 
     def __call__(
         self, pred_study, pred_img, preds_mask, y_study, y_img, y_mask, is_pl, mix_lambda=1

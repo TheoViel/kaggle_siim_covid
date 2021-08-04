@@ -35,3 +35,12 @@ def study_level_map(pred, truth, studies, agg=np.mean):
     return per_class_average_precision_score(
         df_study[pred_cols].values, df_study["truth"].values, num_classes=NUM_CLASSES
     ) * 2/3
+
+
+def study_level_map_binary(pred, truth, studies, agg=np.mean):
+    df = pd.DataFrame({"study": studies})
+    df["truth"] = truth
+    df["pred"] = pred
+
+    df_study = df.groupby('study').agg(agg)
+    return average_precision_score(df_study["truth"].values, df_study["pred"].values)
