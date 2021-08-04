@@ -180,8 +180,8 @@ def expand_boxes(boxes, r=1):
     """
     shape = boxes.shape
     boxes = boxes["yolo"]
-    boxes[:, 2] = np.clip(boxes[:, 2] * r, 0, 0.75)
-    boxes[:, 3] = np.clip(boxes[:, 3] * r, 0, 0.75)
+    boxes[:, 2] = np.clip(boxes[:, 2] * r, 0, 1)
+    boxes[:, 3] = np.clip(boxes[:, 3] * r, 0, 1)
 
     for b in boxes:  # shift boxes out of bounds
         if b[0] - b[2] / 2 < 0:
@@ -299,8 +299,8 @@ class Boxes:
 
     def expand(self, r):
         boxes = self["yolo"]
-        boxes[:, 2] = np.clip(boxes[:, 2] * r, 0, 0.75)
-        boxes[:, 3] = np.clip(boxes[:, 3] * r, 0, 0.75)
+        boxes[:, 2] = np.clip(boxes[:, 2] * r, 0, 1)
+        boxes[:, 3] = np.clip(boxes[:, 3] * r, 0, 1)
 
         for b in boxes:  # shift boxes out of bounds
             if b[0] - b[2] / 2 < 0:
