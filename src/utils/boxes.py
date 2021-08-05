@@ -327,7 +327,6 @@ class Boxes:
     def hflip(self):
         if len(self.boxes_yolo):
             self.boxes_yolo[:, 0] = 1 - self.boxes_yolo[:, 0]
-            # self.boxes_yolo[:, 1] = 1 - self.boxes_yolo[:, 1]
 
             self.boxes_pascal = yolo_to_pascal(self.boxes_yolo.copy(), self.h, self.w)
             self.boxes_albu = pascal_to_albu(self.boxes_pascal.copy(), self.h, self.w)
