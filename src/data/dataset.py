@@ -85,7 +85,9 @@ class CovidClsDataset(Dataset):
         self.boxes[idx].fill(mask)
 
         lungs = self.boxes_lungs[idx]
-        lungs.expand(1.2)
+        lungs.expand(1.1)
+        lungs.clip()
+
         image = lungs.crop(image)
         mask = lungs.crop(mask)
 
@@ -218,9 +220,23 @@ class CovidInfDataset(Dataset):
         self.transforms = transforms
 
         self.img_names = df["save_name"].values
+        self.get_boxes_lungs()
 
     def __len__(self):
         return self.df.shape[0]
+
+    def get_boxes_lungs(self):
+        self.boxes_lungs = []
+        for boxes in self.df['boxes_lung']:
+            x_start = boxes[:, 0].min()
+            y_start = boxes[:, 1].min()
+            x_end = boxes[:, 2].max()
+            y_end = boxes[:, 3].max()
+
+            boxes = Boxes(
+                np.array([[x_start, y_start, x_end, y_end]]), (512, 512), bbox_format="albu"
+            )
+            self.boxes_lungs.append(boxes)
 
     def __getitem__(self, idx):
         """
@@ -234,6 +250,13 @@ class CovidInfDataset(Dataset):
             torch tensor [NUM_CLASSES]: Label.
         """
         image = cv2.imread(self.root_dir + self.img_names[idx])
+
+        lungs = self.boxes_lungs[idx]
+        lungs.expand(1.1)
+        lungs.clip()
+
+        image = lungs.crop(image)
+        image, _ = auto_windowing(image)
 
         if self.transforms:
             transformed = self.transforms(image=image)

@@ -239,6 +239,7 @@ def get_tranfos_inference(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]):
 
     return albu.Compose(
         [
+            albu.Resize(SIZE, SIZE),
             albu.Normalize(mean=mean, std=std),
             AT.transforms.ToTensorV2(),
         ],
