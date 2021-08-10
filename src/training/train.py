@@ -100,7 +100,8 @@ def fit(
             masks = batch[1].to(device)
             y_study = batch[2].to(device)
             y_img = batch[3].to(device)
-            is_pl = batch[4].to(device)
+            y_aux = batch[4].to(device)
+            is_pl = batch[5].to(device)
 
             # Mix data
             apply_mix = np.random.rand() < mix_proba
@@ -112,15 +113,17 @@ def fit(
             if use_fp16:
                 with torch.cuda.amp.autocast():
                     # Forward
-                    pred_study, pred_img, preds_mask = model(x)
+                    pred_study, pred_img, pred_aux, preds_mask = model(x)
 
                     # Compute losses
                     loss = loss_fct(
                         pred_study,
                         pred_img,
+                        pred_aux,
                         preds_mask,
                         y_study,
                         y_img,
+                        y_aux,
                         masks,
                         is_pl,
                         mix_lambda=lam
@@ -169,18 +172,21 @@ def fit(
                     masks = batch[1].to(device)
                     y_study = batch[2].to(device)
                     y_img = batch[3].to(device)
-                    is_pl = batch[4].to(device)
+                    y_aux = batch[4].to(device)
+                    is_pl = batch[5].to(device)
 
                     # Forward
-                    pred_study, pred_img, preds_mask = model(x)
+                    pred_study, pred_img, pred_aux, preds_mask = model(x)
 
                     # Compute losses
                     loss = loss_fct(
                         pred_study.detach(),
                         pred_img.detach(),
+                        pred_aux.detach(),
                         [p.detach() for p in preds_mask],
                         y_study,
                         y_img,
+                        y_aux,
                         masks,
                         is_pl,
                     ).mean()

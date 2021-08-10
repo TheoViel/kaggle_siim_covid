@@ -48,6 +48,7 @@ class CovidModel(nn.Module):
 
         self.logits_img = nn.Linear(self.nb_ft, 1)
         self.logits_study = nn.Linear(self.nb_ft, num_classes)
+        self.logits_aux = nn.Linear(self.nb_ft, 1)
 
         if pretrained:
             del self.encoder.classifier
@@ -103,8 +104,9 @@ class CovidModel(nn.Module):
 
         logits_img = self.logits_img(pooled)
         logits_study = self.logits_study(pooled)
+        logits_aux = self.logits_aux(pooled)
 
-        return logits_study, logits_img, masks
+        return logits_study, logits_img, logits_aux, masks
 
 
 class CovidUnetModel(nn.Module):
@@ -124,6 +126,7 @@ class CovidUnetModel(nn.Module):
 
         self.logits_img = nn.Linear(self.nb_ft, 1)
         self.logits_study = nn.Linear(self.nb_ft, num_classes)
+        self.logits_aux = nn.Linear(self.nb_ft, 1)
 
         self.decoder = UnetDecoder(self.encoder.nb_fts)
         self.conv = nn.Conv2d(16, 1, kernel_size=3, padding=1)
@@ -142,5 +145,6 @@ class CovidUnetModel(nn.Module):
 
         logits_img = self.logits_img(pooled)
         logits_study = self.logits_study(pooled)
+        logits_aux = self.logits_aux(pooled)
 
-        return logits_study, logits_img, masks
+        return logits_study, logits_img, logits_aux, masks

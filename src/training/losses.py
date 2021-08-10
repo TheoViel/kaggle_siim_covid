@@ -54,6 +54,8 @@ class CovidLoss(nn.Module):
         self.w_study = config["w_study"]
         self.w_img = config["w_img"]
         self.seg_loss_multiplier = config["seg_loss_multiplier"]
+        self.pl_cls_w = config['pl_cls_w']
+        self.w_aux_loss = config['w_aux_loss']
 
     def compute_seg_loss(self, preds, truth, is_pl):
         losses = []
@@ -68,7 +70,6 @@ class CovidLoss(nn.Module):
             losses.append(loss)
 
         loss = self.seg_loss_multiplier * torch.stack(losses, -1).mean(-1)
-        loss = loss * (1 - is_pl) / (1 - is_pl.mean() + 1e-6)
 
         return loss
 
@@ -81,12 +82,52 @@ class CovidLoss(nn.Module):
         else:
             return self.w_study * self.ce(pred, truth.long())
 
+    def compute_img_loss(self, pred, truth, mix_lambda=1):
+        if isinstance(truth, list):
+            return self.w_img * (
+                mix_lambda * self.bce(pred.view(truth[0].size()), truth[0]) +
+                (1 - mix_lambda) * self.bce(pred.view(truth[1].size()), truth[1])
+            )
+        else:
+            return self.w_img * self.bce(pred.view(truth.size()), truth)
+
+    def compute_aux_loss(self, pred, truth, mix_lambda=1):
+        if isinstance(truth, list):
+            return self.w_aux_loss * (
+                mix_lambda * self.bce(pred.view(truth[0].size()), truth[0]) +
+                (1 - mix_lambda) * self.bce(pred.view(truth[1].size()), truth[1])
+            )
+        else:
+            return self.w_aux_loss * self.bce(pred.view(truth.size()), truth)
+
     def __call__(
-        self, pred_study, pred_img, preds_mask, y_study, y_img, y_mask, is_pl, mix_lambda=1
+        self,
+        pred_study,
+        pred_img,
+        pred_aux,
+        preds_mask,
+        y_study,
+        y_img,
+        y_aux,
+        y_mask,
+        is_pl,
+        mix_lambda=1
     ):
-        seg_loss = self.compute_seg_loss(preds_mask, y_mask, is_pl=is_pl)
+        if self.w_seg_loss > 0:
+            seg_loss = self.compute_seg_loss(preds_mask, y_mask, is_pl=is_pl)
+        else:
+            seg_loss = 0
 
         study_loss = self.compute_study_loss(pred_study, y_study, mix_lambda=mix_lambda)
-        img_loss = self.w_img * self.bce(pred_img.view(y_img.size()), y_img)
+        img_loss = self.compute_img_loss(pred_img, y_img, mix_lambda=mix_lambda)
+        cls_loss = (
+            (1 - is_pl) * (study_loss + img_loss) +
+            self.pl_cls_w * is_pl * (study_loss + img_loss)
+        )
 
-        return self.w_seg_loss * seg_loss + (1 - self.w_seg_loss) * (img_loss + study_loss)
+        if self.w_aux_loss > 0:
+            aux_loss = self.compute_aux_loss(pred_aux, y_aux, mix_lambda=mix_lambda) * is_pl
+        else:
+            aux_loss = 0
+
+        return self.w_seg_loss * seg_loss + (1 - self.w_seg_loss) * (cls_loss + aux_loss)

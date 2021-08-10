@@ -11,29 +11,44 @@ class CovidClsDataset(Dataset):
     def __init__(
         self,
         df,
-        root_dir="",
+        df_extra=None,
         transforms=None,
-        train=False,
+        train=True,
+        extra_prop=0.5,
+        fold=0,
+        iter_per_epochs=None
     ):
         """
         Constructor
 
         Args:
             df (pandas dataframe): Metadata.
-            root_dir (str): Directory with all the images. Defaults to "".
             img_name (str, optional): Column corresponding to the image. Defaults to "img_name".
         """
         self.df = df
+        self.df_extra = df_extra
         self.train = train
         self.transforms = transforms
+        self.extra_prop = extra_prop
+        self.train = train
+        self.fold = fold
+        self.iter_per_epochs = iter_per_epochs
 
         self.img_names = df["save_name"].values
         self.study_targets = df[CLASSES].values.argmax(-1)
         self.img_targets = df["img_target"].values
         self.studies = df["study_id"].values
+        self.unique_studies = np.unique(self.studies)
 
         self.is_pl = df['is_pl'].values
         self.root_dirs = df['root'].values
+
+        if df_extra is not None:
+            self.study_targets_ext = df_extra[[f'pl_{c}_{fold}' for c in CLASSES]].values
+            self.study_targets_ext /= self.study_targets_ext.max(0, keepdims=True)
+
+            self.img_targets_ext = df_extra[f'pl_img_{fold}'].values
+            self.img_targets_ext /= self.img_targets_ext.max()
 
         self.get_boxes()
 
@@ -57,9 +72,27 @@ class CovidClsDataset(Dataset):
             self.boxes.append(boxes)
 
     def __len__(self):
-        return self.df.shape[0]
+        return len(self.df) if self.iter_per_epochs is None else self.iter_per_epochs
 
-    def __getitem__(self, idx):
+    def getitem_extra(self):
+        idx = np.random.randint(len(self.df_extra))
+
+        image = cv2.imread(self.df_extra['path'][idx])
+
+        if self.transforms:
+            transformed = self.transforms(image=image)
+            image = transformed["image"]
+
+        y_study = torch.tensor(self.study_targets_ext[idx], dtype=torch.float)
+        y_img = torch.tensor(self.img_targets_ext[idx], dtype=torch.float)
+        y_aux = torch.tensor(self.df_extra['target'][idx], dtype=torch.float)
+        is_pl = torch.tensor(1, dtype=torch.float)
+
+        mask = torch.zeros(image.shape[1:])
+
+        return image, mask, y_study, y_img, y_aux, is_pl
+
+    def getitem(self, idx):
         """
         Item accessor
 
@@ -70,6 +103,10 @@ class CovidClsDataset(Dataset):
             torch tensor [C x H x W]: Image.
             torch tensor [NUM_CLASSES]: Label.
         """
+        if self.train:  # sample according to study
+            study = np.random.choice(self.unique_studies)
+            idx = np.random.choice(self.df[self.df['study_id'] == study].index)
+
         image = cv2.imread(self.root_dirs[idx] + self.img_names[idx])
 
         mask = np.zeros(image.shape[:-1])
@@ -82,11 +119,20 @@ class CovidClsDataset(Dataset):
             image = transformed["image"]
             mask = transformed["mask"]
 
-        y_study = torch.tensor(self.study_targets[idx], dtype=torch.float)
+        y_study = np.zeros(len(CLASSES))
+        y_study[self.study_targets[idx]] = 1
+        y_study = torch.tensor(y_study, dtype=torch.float)
         y_img = torch.tensor(self.img_targets[idx], dtype=torch.float)
+        y_aux = torch.tensor(0, dtype=torch.float)
         is_pl = torch.tensor(self.is_pl[idx], dtype=torch.float)
 
-        return image, mask, y_study, y_img, is_pl
+        return image, mask, y_study, y_img, y_aux, is_pl
+
+    def __getitem__(self, idx):
+        if np.random.random() < self.extra_prop and self.train:
+            return self.getitem_extra()
+        else:
+            return self.getitem(idx)
 
 
 class CovidDetDataset(Dataset):

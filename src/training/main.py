@@ -1,7 +1,7 @@
 import gc
 import torch
 import numpy as np
-import pandas as pd
+# import pandas as pd
 from sklearn.metrics import roc_auc_score
 
 from params import CLASSES
@@ -13,7 +13,7 @@ from utils.metrics import study_level_map
 from utils.torch import seed_everything, count_parameters, save_model_weights
 
 
-def train(config, df_train, df_val, fold, log_folder=None):
+def train(config, df_train, df_val, df_extra=None, fold=0, log_folder=None):
     """
     Trains and validate a model.
 
@@ -41,16 +41,18 @@ def train(config, df_train, df_val, fold, log_folder=None):
 
     train_dataset = CovidClsDataset(
         df_train,
-        root_dir=config.root_dir,
+        df_extra=df_extra,
         transforms=get_transfos_cls(augment=True, mean=model.mean, std=model.std),
         train=True,
+        extra_prop=config.extra_prop,
+        fold=fold,
+        iter_per_epochs=config.iter_per_epochs,
     )
 
     val_dataset = CovidClsDataset(
         df_val,
-        root_dir=config.root_dir,
         transforms=get_transfos_cls(augment=False, mean=model.mean, std=model.std),
-        train=True,
+        train=False,
     )
 
     n_parameters = count_parameters(model)
@@ -89,8 +91,8 @@ def train(config, df_train, df_val, fold, log_folder=None):
             device=config.device,
         )
 
-        # config.loss_config['w_seg_loss'] = 0  # remove seg loss
-        # config.loss_config["w_img"] /= 2  # more focus on multiclass
+        config.loss_config['w_seg_loss'] = 0.5  # more focus on cls
+        train_dataset.extra_prop = 0  # remove ext data
 
     if config.save_weights and log_folder is not None:
         save_model_weights(
@@ -133,16 +135,16 @@ def k_fold(config, df, df_extra=None, log_folder=None):
             df_train = df[df[config.folds_col] != i].copy().reset_index(drop=True)
             df_val = df[df[config.folds_col] == i].copy().reset_index(drop=True)
 
-            if df_extra is not None:
-                df_train = pd.concat([df_train, df_extra], sort=False).reset_index(
-                    drop=True
-                )
+            # if df_extra is not None:
+            #     df_train = pd.concat([df_train, df_extra], sort=False).reset_index(
+            #         drop=True
+            #     )
 
             for study in df_train['study_id'].unique():
                 assert study not in df_val['study_id'].values
 
             pred_val_study, pred_val_img = train(
-                config, df_train, df_val, i, log_folder=log_folder
+                config, df_train, df_val, df_extra, i, log_folder=log_folder
             )
 
             val_idx = np.array(df[df[config.folds_col] == i].index)

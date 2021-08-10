@@ -56,10 +56,10 @@ def cutmix_data(x, y_study, y_img, mask, is_pl, alpha=1.0, device="cuda"):
     mixed_mask = mask.clone()
     mixed_mask[:, bbx1:bbx2, bby1:bby2] = mixed_mask[index, bbx1:bbx2, bby1:bby2]
 
-    mixed_y_img = (mixed_mask.sum(-1).sum(-1) > 100).float()
+    # mixed_y_img = (mixed_mask.sum(-1).sum(-1) > 100).float()
 
     # mixed_is_pl = torch.clamp(is_pl + is_pl[index], 0, 1)
     mixed_is_pl = is_pl * lam + is_pl[index] * (1 - lam)
     # mixed_is_pl = is_pl * (lam > 0.5) + is_pl[index] * (lam < 0.5)
 
-    return mixed_x, [y_study, y_study[index]], mixed_y_img, mixed_mask, mixed_is_pl, lam
+    return mixed_x, [y_study, y_study[index]], [y_img, y_img[index]], mixed_mask, mixed_is_pl, lam
