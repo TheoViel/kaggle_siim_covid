@@ -1,7 +1,6 @@
 import timm
 import torch
 import numpy as np
-import torch.nn.functional as F
 import resnest.torch as resnest_torch
 
 from params import MEAN, STD
@@ -22,12 +21,15 @@ BLOCKS_IDX = {
 def get_encoder(name):
     """
     Loads a pretrained model.
-    Supports ResNest, ResNext-wsl, EfficientNet, ResNext and ResNet.
+    Supports EfficientNet, ResNet, ResNext, ResNest (?) and ResNext-wsl (?).
+
     Args:
         name (str): Name of the model to load
         num_classes (int, optional): Number of classes to use. Defaults to 1.
+
     Raises:
         NotImplementedError: Unknown model name.
+
     Returns:
         torch model: Pretrained model
     """
@@ -50,11 +52,6 @@ def get_encoder(name):
         model.nb_fts = [model.blocks[b][-1].conv_pwl.out_channels for b in model.block_idx]
         model.nb_ft = model.nb_fts[-1]
         model.extract_features = lambda x: extract_features_efficientnet(model, x)
-
-    elif "densenet" in name:
-        model.nb_ft = model.classifier.in_features
-        model.nb_ft_int = model.nb_ft // 2
-        model.extract_features = lambda x: extract_features_densenet(model, x)
     else:
         model.nb_ft = model.fc.in_features
         model.nb_ft_int = model.nb_ft // 2
@@ -72,6 +69,15 @@ def get_encoder(name):
 
 
 def extract_features_resnet(self, x):
+    """
+    Extract features for a ResNet model.
+
+    Args:
+        x (torch tensor [BS x 3 x H x W]): Input image.
+
+    Returns:
+        torch tensors: features.
+    """
     x = self.conv1(x)
     x = self.bn1(x)
     x = self.relu(x)
@@ -85,13 +91,16 @@ def extract_features_resnet(self, x):
     return x1, x2, x3, x4
 
 
-def extract_features_densenet(self, x):
-    x = self.features(x)
-    x = F.relu(x, inplace=True)   # remove ?
-    return x
-
-
 def extract_features_efficientnet(self, x):
+    """
+    Extract features for an EfficientNet model.
+
+    Args:
+        x (torch tensor [BS x 3 x H x W]): Input image.
+
+    Returns:
+        torch tensors: features.
+    """
     x = self.conv_stem(x)
     x = self.bn1(x)
     x = self.act1(x)
@@ -101,8 +110,5 @@ def extract_features_efficientnet(self, x):
         x = b(x)
         if i in self.block_idx:
             features.append(x)
-            # print(x.size())
-        # else:
-        #     print((x.size(), ))
 
     return features

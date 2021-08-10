@@ -156,7 +156,6 @@ def get_transfos_cls(augment=True, mean=None, std=None):
                 color_transforms(p=0.5),
                 blur_transforms(p=0.5),
                 distortion_transforms(p=0.25),
-                # dropout_transforms(p=0.1),
                 normalizer,
             ],
         )
@@ -165,63 +164,6 @@ def get_transfos_cls(augment=True, mean=None, std=None):
             [
                 normalizer,
             ],
-        )
-
-
-def get_transfos_det(
-    augment=True, mean=None, std=None, bbox_format="yolo"
-):
-    """
-    Returns transformations for detection.
-
-    Args:
-        augment (bool, optional): Whether to apply augmentations. Defaults to True.
-        mean (np array [3], optional): Mean for normalization. Defaults to None.
-        std (np array [3], optional): Standard deviation for normalization. Defaults to None.
-        bbox_format (str, optional): Bounding box format. Defaults to "yolo".
-
-    Returns:
-        albumentation transforms: transforms.
-    """
-    bbox_params = albu.BboxParams(
-        format=bbox_format, label_fields=["class_labels"], min_visibility=0.1
-    )
-
-    if mean is None or std is None:
-        normalizer = albu.Compose(
-            [
-                AT.transforms.ToTensorV2(),
-            ],
-            p=1,
-        )
-    else:
-        normalizer = albu.Compose(
-            [
-                albu.Normalize(mean=mean, std=std),
-                AT.transforms.ToTensorV2(),
-            ],
-            p=1,
-        )
-
-    if augment:
-        return albu.Compose(
-            [
-                albu.ShiftScaleRotate(
-                    scale_limit=0.1, shift_limit=0, rotate_limit=20, p=0.5,
-                ),
-                albu.HorizontalFlip(p=0.5),
-                color_transforms(p=0.5),
-                blur_transforms(p=0.5),
-                normalizer,
-            ],
-            bbox_params=bbox_params
-        )
-    else:
-        return albu.Compose(
-            [
-                normalizer,
-            ],
-            bbox_params=bbox_params
         )
 
 

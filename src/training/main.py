@@ -33,24 +33,18 @@ def train(config, df_train, df_val, fold, log_folder=None):
 
     model = get_model(
         config.selected_model,
-        use_unet=config.use_unet,
         num_classes=config.num_classes,
-        pretrained=config.pretrained,
     ).to(config.device)
     model.zero_grad()
 
     train_dataset = CovidClsDataset(
         df_train,
-        root_dir=config.root_dir,
         transforms=get_transfos_cls(augment=True, mean=model.mean, std=model.std),
-        train=True,
     )
 
     val_dataset = CovidClsDataset(
         df_val,
-        root_dir=config.root_dir,
         transforms=get_transfos_cls(augment=False, mean=model.mean, std=model.std),
-        train=True,
     )
 
     n_parameters = count_parameters(model)

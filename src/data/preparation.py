@@ -11,6 +11,12 @@ from utils.plot import plot_sample
 
 
 def prepare_dataframe():
+    """
+    Prepares the training dataframe
+
+    Returns:
+        pandas DataFrame: Training dataframe.
+    """
     df_study = pd.read_csv(DATA_PATH + 'train_study_level.csv')
     df_image = pd.read_csv(DATA_PATH + 'train_image_level.csv')
     df = pd.read_csv(DATA_PATH + f'df_train_{SIZE}.csv')
@@ -42,6 +48,18 @@ def prepare_dataframe():
 
 
 def handle_duplicates(df, clusts, transpositions, plot=False):
+    """
+    Updates dataframe with bounding boxes.
+
+    Args:
+        df (pandas DataFrame): Training dataframe.
+        clusts (list of np arrays): Clusters of duplicates.
+        transpositions (list of np arrays): Whether the images were transposed.
+        plot (bool, optional): Whether to plot visuals. Defaults to False.
+
+    Returns:
+        pandas DataFrame: Updated dataframe.
+    """
     root = DATA_PATH + f"train_{SIZE}/"
 
     for clust, tran in zip(clusts, transpositions):
@@ -80,21 +98,15 @@ def handle_duplicates(df, clusts, transpositions, plot=False):
 
 
 def add_additional_boxes(df):
-    # additional_boxes = pd.read_csv(DATA_PATH + "additional_boxes_.csv", sep=";")
+    """
+    Retrieves manually annotated missing boxes.
 
-    # additional_boxes['boxes'] = (
-    #     additional_boxes['x'].astype(str) + ', ' +
-    #     additional_boxes['y'].astype(str) + ', ' +
-    #     additional_boxes['w'].astype(str) + ', ' +
-    #     additional_boxes['h'].astype(str)
-    # )
-    # additional_boxes['boxes'] = additional_boxes['boxes'].apply(lambda x: x.split(', '))
-    # additional_boxes.drop(['shape_0', 'shape_1', 'x', 'y', 'w', 'h'], axis=1, inplace=True)
+    Args:
+        df (pandas DataFrame): Training dataframe.
 
-    # additional_boxes = additional_boxes.groupby('save_name').agg(list).reset_index()
-    # additional_boxes['label'] = additional_boxes['label'].apply(lambda x: x[0])
-
-    # additional_boxes.to_csv('../output/additional_boxes_processed.csv', index=False)
+    Returns:
+        pandas DataFrame: Updated dataframe.
+    """
     additional_boxes = pd.read_csv('../output/additional_boxes_processed.csv')
 
     # process boxes

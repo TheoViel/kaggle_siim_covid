@@ -4,6 +4,16 @@ import numpy as np
 
 
 def read_xray(path):
+    """
+    Loads a dicom xray.
+
+    Args:
+        path (str): Path to the dicom file.
+
+    Returns:
+        np array: Pixel array.
+        dict: Dicom metadata.
+    """
     metadata = pydicom.read_file(path, stop_before_pixels=True)
     data = pydicom.read_file(path).pixel_array
 
@@ -16,6 +26,15 @@ def read_xray(path):
 
 
 def remove_padding(img):
+    """
+    Looks for black or white padding in an image and removes it.
+
+    Args:
+        img (np array): Image.
+
+    Returns:
+        np array: Image.
+    """
     pad_y = (img > 30).mean(-1) > 0.1
     start_y = pad_y.tolist().index(True)
     end_y = pad_y[::-1].tolist().index(True)
@@ -39,6 +58,15 @@ def remove_padding(img):
 
 
 def auto_windowing(img):
+    """
+    Applies automated windowing to the 1st and 99th percentiles.
+
+    Args:
+        img (np array): Image.
+
+    Returns:
+        np uint8 array: Windowed image.
+    """
     pixels = img.flatten()
     pixels = pixels[pixels > 0]
     pixels = pixels[pixels < pixels.max()]
