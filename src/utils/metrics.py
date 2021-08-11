@@ -6,6 +6,18 @@ from params import CLASSES, NUM_CLASSES
 
 
 def per_class_average_precision_score(pred, truth, num_classes=1, average=True):
+    """
+    Computes the per class average precision.
+
+    Args:
+        pred (np array [N x NUM_CLASSES]): Predictions.
+        truth (np array [N]): Ground truth
+        num_classes (int, optional): Number of classes. Defaults to 1.
+        average (bool, optional): Whether to average results. Defaults to True.
+
+    Returns:
+        float or list of float: Metric value or per class metric value.
+    """
     if num_classes == 1:
         return average_precision_score(truth.flatten(), pred.flatten())
 
@@ -21,6 +33,18 @@ def per_class_average_precision_score(pred, truth, num_classes=1, average=True):
 
 
 def study_level_map(pred, truth, studies, agg=np.mean):
+    """
+    Computes the study level metric.
+
+    Args:
+        pred (np array [N x NUM_CLASSES]): Predictions.
+        truth (np array [N x NUM_CLASSES] or [N]): Ground truth
+        studies (list of str): Studies for aggregation.
+        agg (fct, optional): How to aggreagate predictions. Defaults to np.mean.
+
+    Returns:
+        float: Metric value.
+    """
     df = pd.DataFrame({"study": studies})
 
     if len(truth.shape) > 1:

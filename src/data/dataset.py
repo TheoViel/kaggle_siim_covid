@@ -88,7 +88,7 @@ class CovidClsDataset(Dataset):
         y_study = torch.tensor(self.study_targets[idx], dtype=torch.float)
         y_img = torch.tensor(self.img_targets[idx], dtype=torch.float)
 
-        return image, mask, y_study, y_img, 0
+        return image, mask, y_study, y_img
 
 
 class CovidInfDataset(Dataset):

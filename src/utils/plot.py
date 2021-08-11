@@ -4,6 +4,19 @@ from matplotlib.patches import Rectangle
 
 
 def plot_sample(img, boxes, bbox_format="yolo", axis=False):
+    """
+    Plots an image an its bounding boxes.
+    Supports boxes of formats yolo, coco, pascal_voc and albumentations.
+
+    Args:
+        img (np array [H x W (x 3)]): Image.
+        boxes (list of np array): Boxes.
+        bbox_format (str, optional): Bounding box format. Defaults to "yolo".
+        axis (bool, optional): Whether to display axes. Defaults to False.
+
+    Raises:
+        NotImplementedError: bbox_format is not supported.
+    """
     # plt.figure(figsize=(9, 9))
     plt.imshow(img, cmap="gray")
     plt.axis(axis)

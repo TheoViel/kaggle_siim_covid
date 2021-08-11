@@ -25,8 +25,8 @@ def train(config, df_train, df_val, fold, log_folder=None):
         log_folder (None or str, optional): Folder to logs results to. Defaults to None.
 
     Returns:
-        np array: Validation predictions.
-        pandas dataframe: Training history.
+        np array [n x num_classes]: Study validation predictions.
+        np array [n x 1]: Image validation predictions.
     """
 
     seed_everything(config.seed)
@@ -53,38 +53,27 @@ def train(config, df_train, df_val, fold, log_folder=None):
     print(f"    -> {len(val_dataset)} validation images")
     print(f"    -> {n_parameters} trainable parameters")
 
-    for i, (epochs, lr, optimizer, warmup_prop) in enumerate(zip(
-        config.epochs, config.lr, config.optimizer, config.warmup_prop
-    )):
-        print(
-            f'\n - Training {i + 1} / {len(config.epochs)} : \t'
-            f'epochs: {epochs}\tlr: {lr:.1e}\twarmup_prop: {warmup_prop}\toptimizer: {optimizer}'
-        )
-
-        pred_val_study, pred_val_img = fit(
-            model,
-            train_dataset,
-            val_dataset,
-            config.loss_config,
-            samples_per_patient=config.samples_per_patient,
-            optimizer=optimizer,
-            epochs=epochs,
-            batch_size=config.batch_size,
-            val_bs=config.val_bs,
-            lr=lr,
-            warmup_prop=warmup_prop,
-            mix=config.mix,
-            mix_proba=config.mix_proba,
-            mix_alpha=config.mix_alpha,
-            num_classes=config.num_classes,
-            verbose=config.verbose,
-            first_epoch_eval=config.first_epoch_eval,
-            use_fp16=config.use_fp16,
-            device=config.device,
-        )
-
-        # config.loss_config['w_seg_loss'] = 0  # remove seg loss
-        # config.loss_config["w_img"] /= 2  # more focus on multiclass
+    pred_val_study, pred_val_img = fit(
+        model,
+        train_dataset,
+        val_dataset,
+        config.loss_config,
+        samples_per_patient=config.samples_per_patient,
+        optimizer=config.optimizer,
+        epochs=config.epochs,
+        batch_size=config.batch_size,
+        val_bs=config.val_bs,
+        lr=config.lr,
+        warmup_prop=config.warmup_prop,
+        mix=config.mix,
+        mix_proba=config.mix_proba,
+        mix_alpha=config.mix_alpha,
+        num_classes=config.num_classes,
+        verbose=config.verbose,
+        first_epoch_eval=config.first_epoch_eval,
+        use_fp16=config.use_fp16,
+        device=config.device,
+    )
 
     if config.save_weights and log_folder is not None:
         save_model_weights(
@@ -103,9 +92,6 @@ def train(config, df_train, df_val, fold, log_folder=None):
 def k_fold(config, df, df_extra=None, log_folder=None):
     """
     Performs a patient grouped k-fold cross validation.
-    The extra data is used for training at each fold.
-    The following things are saved to the log folder :
-    oof predictions, val predictions, val indices, histories.
 
     Args:
         config (Config): Parameters.
@@ -114,7 +100,8 @@ def k_fold(config, df, df_extra=None, log_folder=None):
         log_folder (None or str, optional): Folder to logs results to. Defaults to None.
 
     Returns:
-        dict : Metrics dictionary.
+        np array [N x num_classes]: Study oof predictions.
+        np array [N x 1]: Image oof predictions.
     """
 
     pred_oof_study = np.zeros((len(df), config.num_classes))

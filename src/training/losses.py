@@ -43,7 +43,19 @@ class SmoothCrossEntropyLoss(nn.Module):
 
 
 class CovidLoss(nn.Module):
+    """
+    Loss for the problem :
+    - Mask loss : FocalTversky + BCE
+    - Study loss : CE
+    - Img loss : BCE
+    """
     def __init__(self, config):
+        """
+        Constructor
+
+        Args:
+            config (dict): Loss config.
+        """
         super().__init__()
         self.bce = nn.BCEWithLogitsLoss(reduction="none")
         self.ce = SmoothCrossEntropyLoss()
@@ -55,7 +67,17 @@ class CovidLoss(nn.Module):
         self.w_img = config["w_img"]
         self.seg_loss_multiplier = config["seg_loss_multiplier"]
 
-    def compute_seg_loss(self, preds, truth, is_pl):
+    def compute_seg_loss(self, preds, truth):
+        """
+        Computes the auxiliary segmentation loss.
+
+        Args:
+            preds (list of torch tensors [BS x h_i x w_i]): Predicted masks.
+            truth (torch tensor [BS x H x W]): Ground truth mask.
+
+        Returns:
+            torch tensor [BS]: Loss value.
+        """
         losses = []
         truth = truth.unsqueeze(1)
 
@@ -68,11 +90,21 @@ class CovidLoss(nn.Module):
             losses.append(loss)
 
         loss = self.seg_loss_multiplier * torch.stack(losses, -1).mean(-1)
-        loss = loss * (1 - is_pl) / (1 - is_pl.mean() + 1e-6)
 
         return loss
 
     def compute_study_loss(self, pred, truth, mix_lambda=1):
+        """
+        Computes the study loss. Handles mixup / cutmix.
+
+        Args:
+            preds (list of torch tensors or torch tensor [BS x num_classes]): Predictions.
+            truth (torch tensor [BS x num_classes]): Ground truth.
+            mix_lambda (float, optional): Mix coefficitnet. Defaults to 1.
+
+        Returns:
+            torch tensor [BS]: Loss value.
+        """
         if isinstance(truth, list):
             return self.w_study * (
                 mix_lambda * self.ce(pred, truth[0].long()) +
@@ -82,9 +114,24 @@ class CovidLoss(nn.Module):
             return self.w_study * self.ce(pred, truth.long())
 
     def __call__(
-        self, pred_study, pred_img, preds_mask, y_study, y_img, y_mask, is_pl, mix_lambda=1
+        self, pred_study, pred_img, preds_mask, y_study, y_img, y_mask, mix_lambda=1
     ):
-        seg_loss = self.compute_seg_loss(preds_mask, y_mask, is_pl=is_pl)
+        """
+        Computes the overall loss.
+
+        Args:
+            pred_study (list of torch tensors or torch tensor [BS x num_classes]): Study preds.
+            pred_img (torch tensor [BS x num_classes]): Opacity predictions.
+            preds_mask (list of torch tensors [BS x h_i x w_i]): Predicted masks.
+            y_study (torch tensor [BS x num_classes]): Study ground truth.
+            y_img (torch tensor [BS x num_classes]): Opacity ground truth.
+            y_mask (torch tensor [BS x H x W]): Ground truth mask.
+            mix_lambda (float, optional): Mix coefficitnet. Defaults to 1.
+
+        Returns:
+            torch tensor [BS]: Loss value.
+        """
+        seg_loss = self.compute_seg_loss(preds_mask, y_mask)
 
         study_loss = self.compute_study_loss(pred_study, y_study, mix_lambda=mix_lambda)
         img_loss = self.w_img * self.bce(pred_img.view(y_img.size()), y_img)
