@@ -31,12 +31,15 @@ def rand_bbox(size, lam):
     return bbx1, bby1, bbx2, bby2, lam
 
 
-def cutmix_data(x, y_study, y_img, mask, is_pl, alpha=1.0, device="cuda"):
+def cutmix_data(x, y_study, y_img, mask, alpha=1.0, device="cuda"):
     """
-    Applies cutmix to a sample
+    Applies cutmix to a sample.
+
     Args:
         x (torch tensor [batch_size x input_size]): Input batch.
-        y (torch tensor [batch_size x num_classes]): Labels.
+        y (torch tensor [batch_size x num_classes]): Study label.
+        y_img (torch tensor [batch_size x 1]): Opacity label.
+        mask (torch tensor [batch_size x H x W]): Mask.
         alpha (float, optional): Parameter of the beta distribution. Defaults to 1..
         device (str, optional): Device for torch. Defaults to "cuda".
     Returns:
@@ -58,8 +61,4 @@ def cutmix_data(x, y_study, y_img, mask, is_pl, alpha=1.0, device="cuda"):
 
     mixed_y_img = (mixed_mask.sum(-1).sum(-1) > 100).float()
 
-    # mixed_is_pl = torch.clamp(is_pl + is_pl[index], 0, 1)
-    mixed_is_pl = is_pl * lam + is_pl[index] * (1 - lam)
-    # mixed_is_pl = is_pl * (lam > 0.5) + is_pl[index] * (lam < 0.5)
-
-    return mixed_x, [y_study, y_study[index]], mixed_y_img, mixed_mask, mixed_is_pl, lam
+    return mixed_x, [y_study, y_study[index]], mixed_y_img, mixed_mask, lam

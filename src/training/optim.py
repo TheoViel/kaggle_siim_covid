@@ -8,13 +8,15 @@ from collections import defaultdict
 def define_optimizer(name, params, lr=1e-3):
     """
     Defines the loss function associated to the name.
-    Supports optimizers from torch.nn.
+    Supports optimizers from torch.nn, RAdal and LookAhead.
+
     Args:
         name (str): Optimizer name.
         params (torch parameters): Model parameters.
         lr (float, optional): Learning rate. Defaults to 1e-3.
     Raises:
         NotImplementedError: Specified optimizer name is not supported.
+
     Returns:
         torch optimizer: Optimizer.
     """
@@ -39,6 +41,9 @@ def define_optimizer(name, params, lr=1e-3):
 
 
 def centralized_gradient(x, use_gc=True, gc_conv_only=False):
+    """
+    From https://github.com/LiyuanLucasLiu/RAdam/blob/master/radam/radam.py
+    """
     if use_gc:
         if gc_conv_only:
             if len(list(x.size())) > 3:
@@ -50,6 +55,9 @@ def centralized_gradient(x, use_gc=True, gc_conv_only=False):
 
 
 class RAdam(Optimizer):
+    """
+    From https://github.com/LiyuanLucasLiu/RAdam/blob/master/radam/radam.py
+    """
     def __init__(
         self,
         params,
@@ -184,6 +192,9 @@ class RAdam(Optimizer):
 
 
 class PlainRAdam(Optimizer):
+    """
+    From https://github.com/LiyuanLucasLiu/RAdam/blob/master/radam/radam.py
+    """
     def __init__(
         self,
         params,
@@ -299,6 +310,9 @@ class PlainRAdam(Optimizer):
 
 
 class Lookahead(Optimizer):
+    """
+    From https://github.com/alphadl/lookahead.pytorch/blob/master/lookahead.py
+    """
     def __init__(self, optimizer, k=5, alpha=0.5):
         self.optimizer = optimizer
         self.k = k

@@ -5,29 +5,6 @@ import datetime
 import numpy as np
 import pandas as pd
 
-from params import LOG_PATH
-
-LOGGED_IN_CONFIG = [
-    "selected_model",
-    "use_attention",
-    "pretrained_weights",
-    "samples_per_patient",
-    "num_classes_aux",
-    "aux_loss_weight",
-    "loss",
-    "optimizer",
-    "batch_size",
-    "epochs",
-    "lr",
-    "warmup_prop",
-    "swa_first_epoch",
-    'mix',
-    "mix_proba",
-    "mix_alpha",
-    "k",
-    "random_state",
-]
-
 
 class Config:
     """
@@ -148,36 +125,3 @@ def save_config(config, path):
 
     with open(path + ".json", "w") as f:
         json.dump(dic, f)
-
-
-def update_overall_logs(metrics, config_df, log_path):
-    """
-    TODO : Probably outdated, but I don't really use it anymore.
-    Updates a .csv containing logs for several experiments.
-
-    Args:
-        metrics (pandas dataframe): Metrics dataframe.
-        config_df (pandas dataframe): Config as a dataframe as returned by the save_config function.
-        log_path (str): Path to save at.
-
-    Returns:
-        pandas dataframe: Updated dataframe containing logs.
-    """
-    filename = (
-        f"{LOG_PATH}logs_{config_df['mode'][0]}_{config_df['target_name'][0]}.csv"
-    )
-
-    metrics = metrics[["auc", "accuracy", "f1"]]
-    config_df = config_df[LOGGED_IN_CONFIG]
-    df = pd.concat([config_df, metrics], axis=1)
-    df["path"] = log_path
-
-    try:
-        logs = pd.read_csv(filename)
-        logs = pd.concat([logs, df], sort=False).reset_index(drop=True)
-    except FileNotFoundError:
-        logs = df
-
-    logs.to_csv(filename, index=False)
-
-    return logs

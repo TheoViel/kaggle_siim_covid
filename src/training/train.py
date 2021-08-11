@@ -60,8 +60,8 @@ def fit(
         device (str, optional): Device for torch. Defaults to "cuda".
 
     Returns:
-        numpy array [len(val_dataset) x num_classes]: Last prediction on the validation data.
-        pandas dataframe: Training history.
+        np array [n x num_classes]: Study validation predictions.
+        np array [n x 1]: Image validation predictions.
     """
     avg_val_loss = 0.
     lam = 1
@@ -100,13 +100,12 @@ def fit(
             masks = batch[1].to(device)
             y_study = batch[2].to(device)
             y_img = batch[3].to(device)
-            is_pl = batch[4].to(device)
 
             # Mix data
             apply_mix = np.random.rand() < mix_proba
             if apply_mix:
-                x, y_study, y_img, masks, is_pl, lam = cutmix_data(
-                    x, y_study, y_img, masks, is_pl, alpha=mix_alpha, device=device
+                x, y_study, y_img, masks, lam = cutmix_data(
+                    x, y_study, y_img, masks, alpha=mix_alpha, device=device
                 )
 
             if use_fp16:
@@ -122,7 +121,6 @@ def fit(
                         y_study,
                         y_img,
                         masks,
-                        is_pl,
                         mix_lambda=lam
                     ).mean()
 
@@ -144,7 +142,7 @@ def fit(
 
                 # Compute losses
                 loss = loss_fct(
-                    pred_study, pred_img, preds_mask, y_study, y_img, masks, is_pl, mix_lambda=lam
+                    pred_study, pred_img, preds_mask, y_study, y_img, masks, mix_lambda=lam
                 ).mean()
 
                 # Backward & parameter update
@@ -169,7 +167,6 @@ def fit(
                     masks = batch[1].to(device)
                     y_study = batch[2].to(device)
                     y_img = batch[3].to(device)
-                    is_pl = batch[4].to(device)
 
                     # Forward
                     pred_study, pred_img, preds_mask = model(x)
@@ -182,7 +179,6 @@ def fit(
                         y_study,
                         y_img,
                         masks,
-                        is_pl,
                     ).mean()
                     avg_val_loss += loss.mean().item() / len(val_loader)
 

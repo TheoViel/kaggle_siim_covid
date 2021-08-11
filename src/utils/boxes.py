@@ -204,6 +204,17 @@ def expand_boxes(boxes, r=1):
 
 
 def box_fusion(boxes, iou_threshold=0.5, return_once=True):
+    """
+    Fuses boxes using wbf.
+
+    Args:
+        boxes (list of N Boxes): Boxes to fuse.
+        iou_threshold (float, optional): IoU threshold for wbf. Defaults to 0.5.
+        return_once (bool, optional): Whether to return the result once or x N. Defaults to True.
+
+    Returns:
+        Boxes or list of Boxes: Fused boxes.
+    """
     boxes_albu = [box["albu"].copy() for box in boxes]
 
     confidences = [[1] * len(p) for p in boxes_albu]
@@ -220,6 +231,16 @@ def box_fusion(boxes, iou_threshold=0.5, return_once=True):
 
 
 def merge_boxes(boxes, transpositions):
+    """
+    Merges boxes and handles the transposed ones.
+
+    Args:
+        boxes (list of Boxes): Boxes to merge.
+        transpositions (list of bool): Whether to transpose the boxes.
+
+    Returns:
+        List of boxes: Merged boxes.
+    """
     for box, tran in zip(boxes, transpositions):
         if tran:
             box.hflip()
@@ -236,8 +257,20 @@ def merge_boxes(boxes, transpositions):
 class Boxes:
     """
     Class to handle different format of bounding boxes easily.
+    Supports boxes of formats yolo, coco, pascal_voc and albumentations.
     """
     def __init__(self, data, shape, bbox_format="yolo"):
+        """
+        Constructor.
+
+        Args:
+            data (np array [N x 4]): Boxe coordinates.
+            shape (np array [2 or 3]): Associated image shape.
+            bbox_format (str, optional): Boxes format. Defaults to "yolo".
+
+        Raises:
+            NotImplementedError: bbox_format not supported.
+        """
         h, w = shape[:2]
         self.shape = shape[:2]
         self.h = h
@@ -267,7 +300,18 @@ class Boxes:
             raise NotImplementedError
 
     def __getitem__(self, bbox_format):
+        """
+        Item accessor.
 
+        Args:
+            bbox_format (str): Format to return the boxes as.
+
+        Raises:
+            NotImplementedError: bbox_format not supported.
+
+        Returns:
+            np array: Boxes.
+        """
         if bbox_format == "yolo":
             return self.boxes_yolo
         elif bbox_format == "pascal_voc":
@@ -284,19 +328,34 @@ class Boxes:
         return len(self.boxes_yolo)
 
     def resize(self, shape):
+        """
+        Resize boxes.
+
+        Args:
+            shape (np array [2 or 3]): New shape.
+        """
         self.shape = shape
         self.h, self.w = shape[0], shape[1]
         self.boxes_pascal = yolo_to_pascal(self.boxes_yolo.copy(), self.h, self.w)
         self.boxes_coco = pascal_to_coco(self.boxes_pascal.copy())
 
     def fill(self, img, value=1):
+        """
+        Fills an image with the boxes.
+
+        Args:
+            img (np array): Image to fill.
+            value (int, optional): Value to fill with. Defaults to 1.
+        """
         for box in self.boxes_pascal:
             img[box[1]: box[3], box[0]: box[2]] = value
 
     def hflip(self):
+        """
+        Flips the boxes horizontally.
+        """
         if len(self.boxes_yolo):
             self.boxes_yolo[:, 0] = 1 - self.boxes_yolo[:, 0]
-            # self.boxes_yolo[:, 1] = 1 - self.boxes_yolo[:, 1]
 
             self.boxes_pascal = yolo_to_pascal(self.boxes_yolo.copy(), self.h, self.w)
             self.boxes_albu = pascal_to_albu(self.boxes_pascal.copy(), self.h, self.w)
