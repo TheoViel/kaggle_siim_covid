@@ -1,7 +1,0 @@
-path: /kaggle/input/chest-anatomy-yolov5-train-set
-train: images/train
-val: images/test
-
-# Classes
-nc: 10
-names: ['lung_left','lung_right','clavicle_left','clavicle_right','humeral_head_left','humeral_head_right','heart','gastric_bubble','carina','trachea']
