@@ -1,9 +1,10 @@
-# SIIM-FISABIO-RSNA COVID-19 Detection Kaggle Competition - Theo's models
+# SIIM-FISABIO-RSNA COVID-19 Detection Kaggle Competition
+
+*Code to reprodruce Theo's part of the 26th place solution.*
 
 #### Author : [@theoviel](https://github.com/theoviel)
 
-#### Status :
-- Completed, should be usable.
+#### Status : Completed, should be usable.
 
 
 ## Introduction
