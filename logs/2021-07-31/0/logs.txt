@@ -1,0 +1,118 @@
+
+-------------   Fold 1 / 5  -------------
+
+    -> 5064 training images
+    -> 1269 validation images
+    -> 22235711 trainable parameters
+
+ - Training 1 / 1 : 	epochs: 10	lr: 1.0e-03	warmup_prop: 0.05	optimizer: Adam
+Using 605 out of 633 batches by limiting to 1 samples per study.
+
+Epoch 01/10 	 lr=9.5e-04	 t=160s 	loss=1.395	val_loss=1.028	study_map=0.337	img_auc=0.885
+Epoch 02/10 	 lr=8.4e-04	 t=161s 	loss=1.120	val_loss=0.990	study_map=0.336	img_auc=0.882
+Epoch 03/10 	 lr=7.4e-04	 t=162s 	loss=1.067	val_loss=0.946	study_map=0.338	img_auc=0.891
+Epoch 04/10 	 lr=6.3e-04	 t=162s 	loss=1.037	val_loss=0.979	study_map=0.339	img_auc=0.881
+Epoch 05/10 	 lr=5.3e-04	 t=162s 	loss=1.018	val_loss=0.930	study_map=0.347	img_auc=0.889
+Epoch 06/10 	 lr=4.2e-04	 t=163s 	loss=0.985	val_loss=0.943	study_map=0.352	img_auc=0.894
+Epoch 07/10 	 lr=3.2e-04	 t=163s 	loss=0.956	val_loss=0.912	study_map=0.366	img_auc=0.896
+Epoch 08/10 	 lr=2.1e-04	 t=163s 	loss=0.920	val_loss=0.889	study_map=0.367	img_auc=0.902
+Epoch 09/10 	 lr=1.1e-04	 t=163s 	loss=0.897	val_loss=0.899	study_map=0.373	img_auc=0.897
+Epoch 10/10 	 lr=0.0e+00	 t=163s 	loss=0.872	val_loss=0.883	study_map=0.369	img_auc=0.896
+
+ -> Saving weights to ../logs/2021-07-31/0/tf_efficientnetv2_s_in21ft1k_model_0.pt
+
+
+-------------   Fold 2 / 5  -------------
+
+    -> 5066 training images
+    -> 1267 validation images
+    -> 22235711 trainable parameters
+
+ - Training 1 / 1 : 	epochs: 10	lr: 1.0e-03	warmup_prop: 0.05	optimizer: Adam
+Using 605 out of 633 batches by limiting to 1 samples per study.
+
+Epoch 01/10 	 lr=9.5e-04	 t=163s 	loss=1.373	val_loss=1.174	study_map=0.299	img_auc=0.866
+Epoch 02/10 	 lr=8.4e-04	 t=163s 	loss=1.111	val_loss=1.061	study_map=0.328	img_auc=0.873
+Epoch 03/10 	 lr=7.4e-04	 t=163s 	loss=1.060	val_loss=0.973	study_map=0.353	img_auc=0.896
+Epoch 04/10 	 lr=6.3e-04	 t=163s 	loss=1.030	val_loss=0.989	study_map=0.327	img_auc=0.895
+Epoch 05/10 	 lr=5.3e-04	 t=163s 	loss=1.000	val_loss=0.965	study_map=0.357	img_auc=0.890
+Epoch 06/10 	 lr=4.2e-04	 t=163s 	loss=0.982	val_loss=1.030	study_map=0.367	img_auc=0.894
+Epoch 07/10 	 lr=3.2e-04	 t=163s 	loss=0.947	val_loss=0.979	study_map=0.370	img_auc=0.903
+Epoch 08/10 	 lr=2.1e-04	 t=164s 	loss=0.919	val_loss=0.937	study_map=0.374	img_auc=0.902
+Epoch 09/10 	 lr=1.1e-04	 t=163s 	loss=0.880	val_loss=0.931	study_map=0.376	img_auc=0.901
+Epoch 10/10 	 lr=0.0e+00	 t=163s 	loss=0.850	val_loss=0.931	study_map=0.388	img_auc=0.903
+
+ -> Saving weights to ../logs/2021-07-31/0/tf_efficientnetv2_s_in21ft1k_model_1.pt
+
+
+-------------   Fold 3 / 5  -------------
+
+    -> 5067 training images
+    -> 1266 validation images
+    -> 22235711 trainable parameters
+
+ - Training 1 / 1 : 	epochs: 10	lr: 1.0e-03	warmup_prop: 0.05	optimizer: Adam
+Using 605 out of 633 batches by limiting to 1 samples per study.
+
+Epoch 01/10 	 lr=9.5e-04	 t=163s 	loss=1.388	val_loss=1.036	study_map=0.325	img_auc=0.833
+Epoch 02/10 	 lr=8.4e-04	 t=163s 	loss=1.116	val_loss=0.966	study_map=0.341	img_auc=0.896
+Epoch 03/10 	 lr=7.4e-04	 t=163s 	loss=1.069	val_loss=0.956	study_map=0.343	img_auc=0.898
+Epoch 04/10 	 lr=6.3e-04	 t=164s 	loss=1.040	val_loss=0.924	study_map=0.351	img_auc=0.911
+Epoch 05/10 	 lr=5.3e-04	 t=163s 	loss=1.019	val_loss=0.934	study_map=0.347	img_auc=0.912
+Epoch 06/10 	 lr=4.2e-04	 t=163s 	loss=0.991	val_loss=0.913	study_map=0.356	img_auc=0.917
+Epoch 07/10 	 lr=3.2e-04	 t=163s 	loss=0.960	val_loss=0.883	study_map=0.356	img_auc=0.917
+Epoch 08/10 	 lr=2.1e-04	 t=163s 	loss=0.930	val_loss=0.887	study_map=0.368	img_auc=0.920
+Epoch 09/10 	 lr=1.1e-04	 t=163s 	loss=0.904	val_loss=0.868	study_map=0.375	img_auc=0.926
+Epoch 10/10 	 lr=0.0e+00	 t=163s 	loss=0.872	val_loss=0.862	study_map=0.378	img_auc=0.922
+
+ -> Saving weights to ../logs/2021-07-31/0/tf_efficientnetv2_s_in21ft1k_model_2.pt
+
+
+-------------   Fold 4 / 5  -------------
+
+    -> 5068 training images
+    -> 1265 validation images
+    -> 22235711 trainable parameters
+
+ - Training 1 / 1 : 	epochs: 10	lr: 1.0e-03	warmup_prop: 0.05	optimizer: Adam
+Using 605 out of 633 batches by limiting to 1 samples per study.
+
+Epoch 01/10 	 lr=9.5e-04	 t=163s 	loss=1.384	val_loss=1.094	study_map=0.329	img_auc=0.890
+Epoch 02/10 	 lr=8.4e-04	 t=163s 	loss=1.115	val_loss=1.042	study_map=0.325	img_auc=0.900
+Epoch 03/10 	 lr=7.4e-04	 t=163s 	loss=1.063	val_loss=1.097	study_map=0.332	img_auc=0.902
+Epoch 04/10 	 lr=6.3e-04	 t=163s 	loss=1.030	val_loss=0.994	study_map=0.344	img_auc=0.907
+Epoch 05/10 	 lr=5.3e-04	 t=163s 	loss=1.000	val_loss=0.965	study_map=0.342	img_auc=0.906
+Epoch 06/10 	 lr=4.2e-04	 t=164s 	loss=0.976	val_loss=0.950	study_map=0.356	img_auc=0.904
+Epoch 07/10 	 lr=3.2e-04	 t=163s 	loss=0.957	val_loss=0.935	study_map=0.362	img_auc=0.909
+Epoch 08/10 	 lr=2.1e-04	 t=163s 	loss=0.917	val_loss=0.935	study_map=0.365	img_auc=0.910
+Epoch 09/10 	 lr=1.1e-04	 t=163s 	loss=0.895	val_loss=0.909	study_map=0.370	img_auc=0.912
+Epoch 10/10 	 lr=0.0e+00	 t=164s 	loss=0.863	val_loss=0.915	study_map=0.372	img_auc=0.913
+
+ -> Saving weights to ../logs/2021-07-31/0/tf_efficientnetv2_s_in21ft1k_model_3.pt
+
+
+-------------   Fold 5 / 5  -------------
+
+    -> 5067 training images
+    -> 1266 validation images
+    -> 22235711 trainable parameters
+
+ - Training 1 / 1 : 	epochs: 10	lr: 1.0e-03	warmup_prop: 0.05	optimizer: Adam
+Using 605 out of 633 batches by limiting to 1 samples per study.
+
+Epoch 01/10 	 lr=9.5e-04	 t=163s 	loss=1.397	val_loss=1.024	study_map=0.336	img_auc=0.873
+Epoch 02/10 	 lr=8.4e-04	 t=163s 	loss=1.102	val_loss=1.017	study_map=0.323	img_auc=0.887
+Epoch 03/10 	 lr=7.4e-04	 t=164s 	loss=1.055	val_loss=0.978	study_map=0.337	img_auc=0.893
+Epoch 04/10 	 lr=6.3e-04	 t=164s 	loss=1.042	val_loss=0.946	study_map=0.351	img_auc=0.895
+Epoch 05/10 	 lr=5.3e-04	 t=163s 	loss=1.010	val_loss=0.943	study_map=0.347	img_auc=0.903
+Epoch 06/10 	 lr=4.2e-04	 t=164s 	loss=0.976	val_loss=0.932	study_map=0.353	img_auc=0.902
+Epoch 07/10 	 lr=3.2e-04	 t=163s 	loss=0.952	val_loss=0.908	study_map=0.358	img_auc=0.898
+Epoch 08/10 	 lr=2.1e-04	 t=163s 	loss=0.919	val_loss=0.946	study_map=0.364	img_auc=0.902
+Epoch 09/10 	 lr=1.1e-04	 t=163s 	loss=0.887	val_loss=0.895	study_map=0.374	img_auc=0.903
+Epoch 10/10 	 lr=0.0e+00	 t=164s 	loss=0.865	val_loss=0.895	study_map=0.373	img_auc=0.903
+
+ -> Saving weights to ../logs/2021-07-31/0/tf_efficientnetv2_s_in21ft1k_model_4.pt
+
+CV Scores :
+ -> Study mAP : 0.3722
+ -> Image AUC : 0.9058
